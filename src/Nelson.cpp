@@ -26,8 +26,8 @@ int main() {
 	TexturedPlane chong("Chong", "../res/images/chong.png", glm::vec2(0.25), Transform());
 	TexturedPlane box("Box", "../res/images/rocks.jpg", glm::vec2(0.25), Transform());
 
-	scene.add(chong);
-	scene.add(box);
+	scene.add(&chong);
+	scene.add(&box);
 
 	float deltaTime = 0.0f;
 	float lastFrame = 0.0f;
@@ -42,7 +42,7 @@ int main() {
 
 		renderer.render(&scene);
 
-		gui.draw(scene);
+		gui.drawInspector(scene);
 
 		window.update();
 	}

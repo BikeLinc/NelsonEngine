@@ -1010,7 +1010,7 @@ static void ShowDemoWindowWidgets()
         // More:
         // - If you decided that ImTextureID = MyEngineTexture*, then you can pass your MyEngineTexture* pointers
         //   to ImGui::Image(), and gather width/height through your own functions, etc.
-        // - You can use ShowMetricsWindow() to inspect the draw data that are being passed to your renderer,
+        // - You can use ShowMetricsWindow() to inspect the drawInspector data that are being passed to your renderer,
         //   it will help you debug issues if you are confused about it.
         // - Consider using the lower-level ImDrawList::AddImage() API, via ImGui::GetWindowDrawList()->AddImage().
         // - Read https://github.com/ocornut/imgui/blob/master/docs/FAQ.md
@@ -6286,7 +6286,7 @@ void ImGui::ShowStyleEditor(ImGuiStyle* ref)
             ImGui::DragFloat("Curve Tessellation Tolerance", &style.CurveTessellationTol, 0.02f, 0.10f, 10.0f, "%.2f");
             if (style.CurveTessellationTol < 0.10f) style.CurveTessellationTol = 0.10f;
 
-            // When editing the "Circle Segment Max Error" value, draw a preview of its effect on auto-tessellated circles.
+            // When editing the "Circle Segment Max Error" value, drawInspector a preview of its effect on auto-tessellated circles.
             ImGui::DragFloat("Circle Tessellation Max Error", &style.CircleTessellationMaxError , 0.005f, 0.10f, 5.0f, "%.2f", ImGuiSliderFlags_AlwaysClamp);
             if (ImGui::IsItemActive())
             {
@@ -6821,17 +6821,17 @@ static void ShowExampleAppConsole(bool* p_open)
 //-----------------------------------------------------------------------------
 
 // Usage:
-//  static ExampleAppLog my_log;
+//  static GuiLog my_log;
 //  my_log.AddLog("Hello %d world\n", 123);
 //  my_log.Draw("title");
-struct ExampleAppLog
+struct GuiLog
 {
     ImGuiTextBuffer     Buf;
     ImGuiTextFilter     Filter;
     ImVector<int>       LineOffsets; // Index to lines offset. We maintain this with AddLog() calls.
     bool                AutoScroll;  // Keep scrolling if already at the bottom.
 
-    ExampleAppLog()
+    GuiLog()
     {
         AutoScroll = true;
         Clear();
@@ -6947,7 +6947,7 @@ struct ExampleAppLog
 // Demonstrate creating a simple log window with basic filtering.
 static void ShowExampleAppLog(bool* p_open)
 {
-    static ExampleAppLog log;
+    static GuiLog log;
 
     // For the demo: add a debug button _BEFORE_ the normal log window contents
     // We take advantage of a rarely used feature: multiple calls to Begin()/End() are appending to the _same_ window.
@@ -7392,7 +7392,7 @@ static void ShowExampleAppWindowTitles(bool*)
 // [SECTION] Example App: Custom Rendering using ImDrawList API / ShowExampleAppCustomRendering()
 //-----------------------------------------------------------------------------
 
-// Demonstrate using the low-level ImDrawList to draw custom shapes.
+// Demonstrate using the low-level ImDrawList to drawInspector custom shapes.
 static void ShowExampleAppCustomRendering(bool* p_open)
 {
     if (!ImGui::Begin("Example: Custom rendering", p_open))
