@@ -18,7 +18,7 @@ int main() {
 	Renderer renderer;
 	renderer.init();
 
-	Gui gui;
+	Editor gui;
 	gui.init(window.getWindow());
 
 	Scene scene(glm::vec4(0.25, 0.25, 0.35, 1.0));

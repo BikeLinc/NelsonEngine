@@ -127,7 +127,7 @@ struct GuiLog
         }
 };
 
-class Gui {
+class Editor {
 public:
         GuiLog log;
 
@@ -143,7 +143,6 @@ public:
         }
 
         void style() {
-
                 ImGui::GetStyle().FrameRounding = 2.0f;
                 ImGui::GetStyle().GrabRounding = 1.0f;
                 ImGui::GetStyle().GrabMinSize = 18;
