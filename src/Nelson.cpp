@@ -61,11 +61,11 @@ int main() {
 		mouseCurr = glm::vec2(x, y);
 
 		// Mouse Zoom
-		if (glfwGetKey(window.getWindow(), GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS && glfwGetKey(window.getWindow(), GLFW_KEY_EQUAL) == GLFW_PRESS) {
+		if (glfwGetKey(window.getWindow(), GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS && glfwGetKey(window.getWindow(), GLFW_KEY_EQUAL) == GLFW_PRESS) {
 			scene.offset.scale.x += zoomSpeed * deltaTime;
 			scene.offset.scale.y += zoomSpeed * deltaTime;
 		}
-		else if (glfwGetKey(window.getWindow(), GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS && glfwGetKey(window.getWindow(), GLFW_KEY_MINUS) == GLFW_PRESS) {
+		else if (glfwGetKey(window.getWindow(), GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS && glfwGetKey(window.getWindow(), GLFW_KEY_MINUS) == GLFW_PRESS) {
 			scene.offset.scale.x -= zoomSpeed * deltaTime;
 			scene.offset.scale.y -= zoomSpeed * deltaTime;
 		}
