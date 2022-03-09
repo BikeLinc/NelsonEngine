@@ -54,17 +54,17 @@ struct Model {
 
 	}
 
-	void draw() {
+	void draw(Transform offset) {
 		glActiveTexture(GL_TEXTURE0 + textureID);
 		glBindTexture(GL_TEXTURE_2D, textureID);
 
 		// create transformations
 		glm::mat4 model_transform = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-		model_transform = glm::translate(model_transform, transform.position);
+		model_transform = glm::translate(model_transform, transform.position + offset.position);
 		model_transform = glm::rotate(model_transform, glm::radians(transform.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
 		model_transform = glm::rotate(model_transform, glm::radians(transform.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
 		model_transform = glm::rotate(model_transform, glm::radians(transform.rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-		model_transform = glm::scale(model_transform, transform.scale);
+		model_transform = glm::scale(model_transform, transform.scale * offset.scale);
 
 		// get matrix's uniform location and set matrix
 		shader->use();

@@ -122,9 +122,7 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
 }
 
 void Window::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
-        // Mouse Callback
 }
 
 void Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-        // Scroll Callback
 }

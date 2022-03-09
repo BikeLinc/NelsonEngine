@@ -24,7 +24,7 @@ public:
 		glClearColor(scene->backgroundColor.x, scene->backgroundColor.y, scene->backgroundColor.z, scene->backgroundColor.w);
 		glClear(GL_COLOR_BUFFER_BIT);
 		for (int i = 0; i < scene->models.size(); i++) {
-			scene->models.at(i)->draw();
+			scene->models.at(i)->draw(scene->offset);
 		}
 	}
 };

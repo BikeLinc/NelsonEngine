@@ -46,5 +46,4 @@
 #include "Window.h"
 #include "Renderer.h"
 
-
 #endif /* NELSON_ENGINE_H */
