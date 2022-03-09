@@ -1,3 +1,4 @@
+#define GL_SILENCE_DEPRECATION
 /*
  	Fork by Martin Lucas Golini
  	 

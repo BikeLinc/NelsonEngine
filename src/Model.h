@@ -28,7 +28,6 @@ struct Model {
 		this->name = name;
 		this->texturePath = texturePath;
 		textureID = TextureLoader(texturePath).getTexture();
-		this->meshBounds = meshBounds;
 		this->transform = transformOrigin;
 		mesh = new Mesh(geometry);
 		shader = new Shader("../res/shaders/vert.glsl", "../res/shaders/frag.glsl");

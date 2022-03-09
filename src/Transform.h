@@ -15,7 +15,9 @@
 #include "NelsonEngine.h"
 
 struct Transform {
-	glm::vec3 position, rotation, scale;
+	glm::vec3 position;
+	glm::vec3 rotation;
+	glm::vec3 scale;
 	Transform(glm::vec3 position = glm::vec3(0), glm::vec3 rotation = glm::vec3(0), glm::vec3 scale = glm::vec3(1)) {
 		this->position = position;
 		this->rotation = rotation;

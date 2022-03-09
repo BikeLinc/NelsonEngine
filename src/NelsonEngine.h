@@ -13,6 +13,7 @@
 
 #ifndef NELSON_ENGINE_H
 #define NELSON_ENGINE_H
+#define GL_SILENCE_DEPRECATION
 
 // C++ Standard Library
 #include <vector>

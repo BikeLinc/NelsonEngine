@@ -213,7 +213,7 @@ public:
                                 if (ImGui::CollapsingHeader("Properties")) {
                                         ImGui::Text("Viewport Color");
                                         ImGui::Indent(16.0f);
-                                        ImGui::ColorEdit4("Clear Color", &scene.backgroundColor.x);
+                                        ImGui::ColorEdit4("Clear Color", &scene.color.x);
                                         ImGui::Unindent(16.0f);
                                 }
 
