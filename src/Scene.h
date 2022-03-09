@@ -18,6 +18,7 @@
 struct Scene {
 	glm::vec4 backgroundColor;
 	std::vector<Model*> models;
+	Transform offset;
 	int modelCount = 0;
 
 	Scene(glm::vec4 backgroundColor = glm::vec4(1)) {
