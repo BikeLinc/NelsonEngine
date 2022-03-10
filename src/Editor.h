@@ -226,6 +226,7 @@ public:
                                         if (ImGui::CollapsingHeader(characterBuffer)) {
                                                 ImGui::Text("Transform");
                                                 ImGui::Indent(16.0f);
+                                                ImGui::DragInt("Order", &model.order);
                                                 ImGui::DragFloat3("Position", &model.transform.position.x, 0.01f, -10000.0f, 10000.0f);
                                                 ImGui::DragFloat3("Rotation", &model.transform.rotation.x, 0.1f, -180.0f, 180.0f);
                                                 ImGui::DragFloat3("Scale", &model.transform.scale.x, 0.01f, -10.0f, 10.0f);

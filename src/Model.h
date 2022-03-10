@@ -23,6 +23,7 @@ struct Model {
 	Transform transform;
 	Mesh* mesh;
 	Shader* shader;
+	int order = 0;
 
 	Model(const char* name, const char* texturePath, Geometry geometry, Transform transformOrigin) {
 		this->name = name;
