@@ -21,8 +21,9 @@ inline void glBufferDataFromVector(GLenum target, const std::vector<T>& v, GLenu
 
 struct Mesh {
 	unsigned int VBO, VAO, EBO;
+	Geometry geometry;
 	Mesh(Geometry geometry) {
-
+		this->geometry = geometry;
 		glGenVertexArrays(1, &VAO);
 		glGenBuffers(1, &VBO);
 		glGenBuffers(1, &EBO);

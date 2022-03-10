@@ -72,7 +72,7 @@ struct Model {
 
 		// render container
 		glBindVertexArray(mesh->VAO);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, mesh->geometry.indices.size(), GL_UNSIGNED_INT, 0);
 	}
 
 	void destroy() {

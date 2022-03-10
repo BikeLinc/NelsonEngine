@@ -1,16 +1,5 @@
 #include "NelsonEngine.h"
 
-class TexturedPlane : public Model {
-public:
-	TexturedPlane(const char* name, const char* texturePath, glm::vec2 meshBounds, Transform transformOrigin) : Model(name, texturePath, PlaneGeometry(meshBounds), transformOrigin) {
-
-	}
-
-	void update(double delta) override {
-		// Implement Update Here
-	}
-};
-
 int main() {
 	Window window("Nelson");
 	window.init();
@@ -23,11 +12,13 @@ int main() {
 
 	Scene scene(glm::vec4(0.25, 0.25, 0.35, 1.0));
 
-	TexturedPlane chong("Chong", "../res/images/chong.png", glm::vec2(0.25), Transform());
-	TexturedPlane box("Box", "../res/images/rocks.jpg", glm::vec2(0.25), Transform());
+	Model chong("Chong", "../res/images/chong.png", PlaneGeometry(glm::vec2(0.25)), Transform());
+	Model box("Box", "../res/images/rocks.jpg", PlaneGeometry(glm::vec2(0.5)), Transform());
+	Model cube("cube", "../res/images/abstract_diff.jpg", CubeGeometry(), Transform());
 
 	scene.add(&chong);
 	scene.add(&box);
+	scene.add(&cube);
 
 	float deltaTime = 0.0f;
 	float lastFrame = 0.0f;
@@ -38,6 +29,7 @@ int main() {
 	double dragSpeed = 0.05f;
 	double zoomSpeed = 1.0f;
 	bool resetMouse = false;
+
 
 	while (window.isOpen()) {
 
@@ -59,7 +51,6 @@ int main() {
 		double x, y;
 		glfwGetCursorPos(window.getWindow(), &x, &y);
 		mouseCurr = glm::vec2(x, y);
-
 		// Mouse Zoom
 		if (glfwGetKey(window.getWindow(), GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS && glfwGetKey(window.getWindow(), GLFW_KEY_EQUAL) == GLFW_PRESS) {
 			scene.offset.scale.x += zoomSpeed * deltaTime;
