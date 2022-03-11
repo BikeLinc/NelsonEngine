@@ -205,80 +205,53 @@ public:
 		ImGui::NewFrame();
                 log.Draw("Console");
 
-                ImGui::ShowStyleEditor();
-
                 // Inspector Window
-		{
-			ImGui::Begin("Inspector");
+		if(ImGui::Begin("Scene")) {
 
-                        if (ImGui::CollapsingHeader("Scene"))
-                        {
-                                ImGui::Indent(16.0f);
-
-                                // Add
-                                if (ImGui::CollapsingHeader("Add")) {
-                                        static char modelName[128] = "name";
-                                        static char texPath[128] = "../res/images/chong.png";
-                                        static glm::vec2 bounds = glm::vec2(1);
-                                        static Transform transform;
-                                        ImGui::InputText("Name", modelName, IM_ARRAYSIZE(modelName));
-                                        ImGui::InputText("Texture", texPath, IM_ARRAYSIZE(texPath));
-                                        ImGui::DragFloat2("Size", &bounds.x, 0.01f, -1000.0f, 1000.0f);
-                                        ImGui::DragFloat3("Position", &transform.position.x, 0.01f, -10000.0f, 10000.0f);
-                                        ImGui::DragFloat3("Rotation", &transform.rotation.x, 0.1f, -180.0f, 180.0f);
-                                        ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f, -10.0f, 10.0f);
-                                        if (ImGui::Button("Create"))
-                                        {
-                                                scene.add(new Model(modelName, texPath, PlaneGeometry(bounds), transform));
-                                                log.AddLog("[SCENE] Add Model \'%s\'\n", modelName);
-
-                                        }
+                        // Scene Models
+                        for (int i = 0; i < scene.models.size(); i++) {
+                                ImGui::PushID(i);
+                                char characterBuffer[32];
+                                Model& model = *scene.models[i];
+                                sprintf(characterBuffer, model.name, i + 1);
+                                if (ImGui::CollapsingHeader(characterBuffer)) {
+                                        ImGui::Text("Transform");
+                                        ImGui::DragInt("Order", &model.order);
+                                        ImGui::DragFloat3("Position", &model.transform.position.x, 0.01f, -10000.0f, 10000.0f);
+                                        ImGui::DragFloat3("Rotation", &model.transform.rotation.x, 0.1f, -180.0f, 180.0f);
+                                        ImGui::DragFloat3("Scale", &model.transform.scale.x, 0.01f, -10.0f, 10.0f);
                                 }
-
-                                // Scene Properties
-                                if (ImGui::CollapsingHeader("Properties")) {
-                                        ImGui::Text("Viewport Color");
-                                        ImGui::Indent(16.0f);
-                                        ImGui::ColorEdit4("Clear Color", &scene.color.x);
-                                        ImGui::Unindent(16.0f);
-                                }
-
-                                // Scene Models
-                                for (int i = 0; i < scene.models.size(); i++) {
-                                        ImGui::PushID(i);
-                                        char characterBuffer[32];
-                                        Model& model = *scene.models[i];
-                                        sprintf(characterBuffer, model.name, i + 1);
-                                        if (ImGui::CollapsingHeader(characterBuffer)) {
-                                                ImGui::Text("Transform");
-                                                ImGui::Indent(16.0f);
-                                                ImGui::DragInt("Order", &model.order);
-                                                ImGui::DragFloat3("Position", &model.transform.position.x, 0.01f, -10000.0f, 10000.0f);
-                                                ImGui::DragFloat3("Rotation", &model.transform.rotation.x, 0.1f, -180.0f, 180.0f);
-                                                ImGui::DragFloat3("Scale", &model.transform.scale.x, 0.01f, -10.0f, 10.0f);
-                                                ImGui::Unindent(16.0f);
-
-
-                                                ImGui::Text("Material"); 
-                                                ImGui::Indent(16.0f);
-                                                static char str0[128] = "images/*.png";
-                                                ImGui::InputText("Texture", str0, IM_ARRAYSIZE(str0));
-                                                ImGui::SameLine();
-                                                if (ImGui::Button("Load"))
-                                                {
-                                                        log.AddLog("[ASSET]Load Texture From \'%s\'\n", str0);
-                                                }
-                                                ImGui::Unindent(16.0f);
-                                        }
-                                        ImGui::PopID();
-                                }
-                                
-
-                                ImGui::Unindent(16.0f);
+                                ImGui::PopID();
                         }
-                        
                         ImGui::Separator();
+                        ImGui::Separator();
+                        if (ImGui::CollapsingHeader("Add")) {
+                                static char modelName[128] = "name";
+                                static char texPath[128] = "../res/images/chong.png";
+                                static glm::vec2 bounds = glm::vec2(1);
+                                static Transform transform;
+                                ImGui::InputText("Name", modelName, IM_ARRAYSIZE(modelName));
+                                ImGui::InputText("Texture", texPath, IM_ARRAYSIZE(texPath));
+                                ImGui::DragFloat2("Size", &bounds.x, 0.01f, -1000.0f, 1000.0f);
+                                ImGui::DragFloat3("Position", &transform.position.x, 0.01f, -10000.0f, 10000.0f);
+                                ImGui::DragFloat3("Rotation", &transform.rotation.x, 0.1f, -180.0f, 180.0f);
+                                ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f, -10.0f, 10.0f);
+                                if (ImGui::Button("Create"))
+                                {
+                                        scene.add(new Model(modelName, texPath, PlaneGeometry(bounds), transform));
+                                        log.AddLog("[SCENE] Add Model \'%s\'\n", modelName);
 
+                                }
+                        }
+                        ImGui::Separator();
+                        ImGui::Separator();
+                        // Scene Properties
+                        if (ImGui::CollapsingHeader("Properties")) {
+                                ImGui::Text("Viewport Color");
+                                ImGui::ColorEdit4("Clear Color", &scene.color.x);
+                        }
+                        ImGui::Separator();
+                        ImGui::Separator();
                         if (ImGui::CollapsingHeader("Application")) {
 
                                 ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);

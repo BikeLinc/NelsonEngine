@@ -37,8 +37,6 @@ public:
 			}
 		}
 
-		std::cout << minOrder << " " << maxOrder << std::endl;
-
 		int orderIndex = minOrder;
 		while (minOrder <= orderIndex && orderIndex <= maxOrder) {
 			for (int i = 0; i < scene->models.size(); i++) {
