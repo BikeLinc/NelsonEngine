@@ -13,8 +13,10 @@
 
 #include "NelsonEngine.h"
 
-class Renderer {
+class Renderer : public System {
 public:
+	Renderer(MessageBus* bus) : System({ENGINE_EVENT, RENDER_EVENT }, bus) {}
+
 	void init() {
 		glEnable(GL_DEPTH_TEST);
 	}
@@ -48,6 +50,10 @@ public:
 			orderIndex++;
 		}
 		
+	}
+
+	void onNotify(Message message) {
+		postMessage(Message({ CONSOLE_EVENT }, "TEST_FROM_RENDERER"));
 	}
 };
 

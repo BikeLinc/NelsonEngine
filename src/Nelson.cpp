@@ -1,25 +1,27 @@
 #include "NelsonEngine.h"
 
 int main() {
-	Window window("Nelson");
+	MessageBus bus;
+
+	// Engine Initialization
+	Console console(&bus);
+	Window window(&bus);
 	window.init();
-
-	Renderer renderer;
+	Renderer renderer(&bus);
 	renderer.init();
+	Editor editor(&bus);
+	editor.init(window.getWindow());
 
-	Editor gui;
-	gui.init(window.getWindow());
-
-	Scene scene(glm::vec4(0.25, 0.25, 0.35, 1.0));
-
+	// Scene Initialization
+	Scene scene("example-scene", glm::vec4(0.25, 0.25, 0.35, 1.0));
 	Model chong("Chong", "../res/images/chong.png", PlaneGeometry(glm::vec2(0.25)), Transform());
 	Model box("Box", "../res/images/rocks.jpg", PlaneGeometry(glm::vec2(0.5)), Transform());
 	Model cube("cube", "../res/images/abstract_diff.jpg", CubeGeometry(), Transform());
-
 	scene.add(&chong);
 	scene.add(&box);
 	scene.add(&cube);
 
+	// Game Loop
 	float deltaTime = 0.0f;
 	float lastFrame = 0.0f;
 
@@ -29,7 +31,6 @@ int main() {
 	double dragSpeed = 0.05f;
 	double zoomSpeed = 1.0f;
 	bool resetMouse = false;
-
 
 	while (window.isOpen()) {
 
@@ -50,7 +51,7 @@ int main() {
 		}
 		double x, y;
 		glfwGetCursorPos(window.getWindow(), &x, &y);
-		mouseCurr = glm::vec2(x, y);
+		mouseCurr = glm::vec2(x, y); 
 		// Mouse Zoom
 		if (glfwGetKey(window.getWindow(), GLFW_KEY_RIGHT_SHIFT) == GLFW_PRESS && glfwGetKey(window.getWindow(), GLFW_KEY_EQUAL) == GLFW_PRESS) {
 			scene.offset.scale.x += zoomSpeed * deltaTime;
@@ -65,14 +66,15 @@ int main() {
 
 		renderer.render(&scene);
 
-		gui.drawInspector(scene);
+		editor.drawInspector(scene);
 
 		window.update();
+		bus.notify();
 	}
-
+	
 	scene.destroy();
 
-	gui.terminate();
+	editor.terminate();
 	
 	window.terminate();
 

@@ -16,11 +16,13 @@
 #include "NelsonEngine.h"
 
 struct Scene {
+	std::string name;
 	glm::vec4 color;
 	std::vector<Model*> models;
 	Transform offset;
 
-	Scene(glm::vec4 color = glm::vec4(1)) {
+	Scene(std::string name = "scene", glm::vec4 color = glm::vec4(1)) {
+		this->name = name;
 		this->color = color;
 	}
 

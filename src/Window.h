@@ -16,14 +16,14 @@
 
 #include "NelsonEngine.h"
 
-class Window {
+class Window : System {
 public:
 	/**
 	 * Sets member title variable.
 	 *
 	 * \param title
 	 */
-	Window(const char* title);
+	Window(MessageBus* bus): System({ENGINE_EVENT, WINDOW_EVENT},bus) {}
 
 	/**
 	 * Creates fullscreen window on primary monitor.
@@ -93,7 +93,6 @@ public:
 	bool isKeyDown(int key);
 
 private:
-
 	// Window Title, Used For Wincow Creation
 	const char* title;
 
@@ -101,6 +100,9 @@ private:
 	GLFWmonitor* monitor;
 	const GLFWvidmode* mode;
 	GLFWwindow* window;
+
+	// MessageSystem Callback Function
+	void onNotify(Message message);
 
 	// GLFW Member Create Functions
 	void createMonitor(); // Returns secondary monitor if availible for debugging, returns main window if not.
@@ -110,6 +112,7 @@ private:
 	// Static Callback Functions
 	static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
+	static void char_callback(GLFWwindow* window, unsigned int codepoint);
 	static void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 	static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 };

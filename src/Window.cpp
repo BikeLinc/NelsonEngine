@@ -5,22 +5,17 @@
  * @author	Lincoln Scheer
  * @since	02/03/2022
  *
- * @brief	Window is a Nelson utility that provides a high-level
- *		interface for creating and manipulating a cross platform window
- *		that holds an opengl context.
+ * @brief	GLFW Window Handle API
  *
  *****************************************************************************/
 
 #include "Window.h"
 
-Window::Window(const char* title) {
-        this->title = title;
+void Window::init() {
+        this->title = "Nelson";
         this->monitor = nullptr;
         this->mode = nullptr;
         this->window = nullptr;
-}
-
-void Window::init() {
         glfwInit();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -74,6 +69,10 @@ bool Window::isKeyDown(int key) {
         return (glfwGetKey(window, key) == GLFW_PRESS);
 }
 
+void Window::onNotify(Message message) {
+        postMessage(Message( { CONSOLE_EVENT }, "TEST_FROM_WINDOW"));
+}
+
 void Window::createMonitor() {
         int count;
         GLFWmonitor** monitors = glfwGetMonitors(&count);
@@ -107,6 +106,7 @@ void Window::createWindow(bool fullscreen) {
         int w, h;
         glfwGetFramebufferSize(window, &w, &h);
         glViewport(0, (h - w) / 2, w, w);
+        glfwSetWindowUserPointer(window, reinterpret_cast<void*>(this));
         // tell GLFW to capture our mouse
         //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
@@ -116,9 +116,21 @@ void Window::framebuffer_size_callback(GLFWwindow* window, int width, int height
 }
 
 void Window::key_callback(GLFWwindow* window, int key, int scancode, int action, int mode) {
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-                glfwSetWindowShouldClose(window, true);
+        Window* handler = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+
+        if (key == GLFW_KEY_ESCAPE) {
+                handler->postMessage(Message({ ENGINE_EVENT }, "KEY_ESCAPE"));
         }
+        else if (key == GLFW_KEY_SPACE) {
+                handler->postMessage(Message({ ENGINE_EVENT }, "KEY_SPACE"));
+        }
+        else {
+                std::string keyname = glfwGetKeyName(key, scancode);
+                std::transform(keyname.begin(), keyname.end(), keyname.begin(), ::toupper);
+                handler->postMessage(Message({ ENGINE_EVENT }, "KEY_" + keyname));
+        }
+
+
 }
 
 void Window::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {

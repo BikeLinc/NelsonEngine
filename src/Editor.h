@@ -127,9 +127,11 @@ struct GuiLog
         }
 };
 
-class Editor {
+class Editor : public System {
 public:
         GuiLog log;
+
+        Editor(MessageBus* bus) : System({ ENGINE_EVENT, EDITOR_EVENT, CONSOLE_EVENT}, bus) {}
 
         void init(GLFWwindow* window) {
                 IMGUI_CHECKVERSION();
@@ -268,6 +270,30 @@ public:
                 ImGui_ImplOpenGL3_Shutdown();
     	        ImGui_ImplGlfw_Shutdown();
     	        ImGui::DestroyContext();
+        }
+
+        void onNotify(Message message) {
+                        std::time_t t = std::time(0);   // get time now
+                        std::tm* now = std::localtime(&t);
+                        log.AddLog("[%d-%d-%d %d:%d:%d] > %s\n", (now->tm_mon + 1), now->tm_mday,(now->tm_year + 1900), (now->tm_hour), (now->tm_min), (now->tm_sec),message.getEvent().c_str());
+        }
+};
+
+class Console : public System {
+public:
+        Console(MessageBus* messageBus) : System({ ENGINE_EVENT, CONSOLE_EVENT }, messageBus) {}
+private:
+        void onNotify(Message message)
+        {
+                //timestamp();
+                //std::cout << message.getEvent() << std::endl;
+        }
+        void timestamp() {
+                std::time_t t = std::time(0);   // get time now
+                std::tm* now = std::localtime(&t);
+                std::cout << '[' << (now->tm_year + 1900) << '-'
+                        << (now->tm_mon + 1) << '-'
+                        << now->tm_mday << ' ' << (now->tm_hour) << ':' << (now->tm_min) << ':' << (now->tm_sec) << "] ";
         }
 };
 

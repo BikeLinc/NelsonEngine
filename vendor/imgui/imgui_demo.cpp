@@ -6458,7 +6458,7 @@ static void ShowExampleMenuFile()
 }
 
 //-----------------------------------------------------------------------------
-// [SECTION] Example App: Debug Console / ShowExampleAppConsole()
+// [SECTION] Example App: Debug ConsoleSystem / ShowExampleAppConsole()
 //-----------------------------------------------------------------------------
 
 // Demonstrate creating a simple console window, with scrolling, filtering, completion and history.

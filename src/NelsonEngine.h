@@ -1,16 +1,32 @@
-/******************************************************************************
- *
- * @file	NelsonEngine.h
- *
- * @author	Lincoln Scheer
- * @since	02/21/2022
- *
- * @breif	NelsonEngine.h is a static header-only collection of the headers
- *		that Nelson requires. Grouping of includes in this file will allow
- *		an easy transition to using pre-compiled headers.
- *
- *****************************************************************************/
-
+//
+//  _   _      _                       _____             _            
+// | \ | | ___| |___  ___  _ __       | ____|_ __   __ _(_)_ __   ___ 
+// |  \| |/ _ \ / __|/ _ \| '_ \ _____|  _| | '_ \ / _` | | '_ \ / _ \
+// | |\  |  __/ \__ \ (_) | | | |_____| |___| | | | (_| | | | | |  __/
+// |_| \_|\___|_|___/\___/|_| |_|     |_____|_| |_|\__, |_|_| |_|\___|
+//                                                 |___/              
+// 
+// NelsonEngine v1.0 - 2022
+// 
+// Nelson Engine is a 2D and 3D game engine. Since this engine is being written
+// in C++, the engine will need to be build for the user's operating systems. 
+// Development is being conducted on Windows and OSX os's and should be
+// compatible with Linux systems with minor tweaks to the build files. 
+// 
+// 
+//--[Nelson.h]---------------------------------------------------//
+// 
+// 
+// FILE:     Nelson.h
+// 
+// AUTHOR:   Lincoln Scheer
+// 
+// CREATED:  03-16-2022
+// 
+// PURPOSE:  Header file for all Nelson Engine includes.
+// 
+//
+//---------------------------------------------------------------------------// 
 #ifndef NELSON_ENGINE_H
 #define NELSON_ENGINE_H
 #define GL_SILENCE_DEPRECATION
@@ -32,6 +48,7 @@
 #include "../vendor/glm/gtc/type_ptr.hpp"
 
 // Nelson Utils
+#include "MessageSystem.h"
 #include "Shader.h"
 #include "TextureLoader.h"
 
@@ -46,5 +63,6 @@
 #include "Editor.h"
 #include "Window.h"
 #include "Renderer.h"
+
 
 #endif /* NELSON_ENGINE_H */
