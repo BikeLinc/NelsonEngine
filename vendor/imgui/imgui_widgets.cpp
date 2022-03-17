@@ -2119,7 +2119,7 @@ static const char* ImAtoi(const char* src, TYPE* output)
 }
 
 // Sanitize format
-// - Zero terminate so extra characters after format (e.g. "%f123") don't confuse atof/atoi
+// - Zero dispose so extra characters after format (e.g. "%f123") don't confuse atof/atoi
 // - stb_sprintf.h supports several new modifiers which format numbers in a way that also makes them incompatible atof/atoi.
 static void SanitizeFormatString(const char* fmt, char* fmt_out, size_t fmt_out_size)
 {
@@ -2132,7 +2132,7 @@ static void SanitizeFormatString(const char* fmt, char* fmt_out, size_t fmt_out_
         if (c != '\'' && c != '$' && c != '_') // Custom flags provided by stb_sprintf.h. POSIX 2008 also supports '.
             *(fmt_out++) = c;
     }
-    *fmt_out = 0; // Zero-terminate
+    *fmt_out = 0; // Zero-dispose
 }
 
 template<typename TYPE, typename SIGNEDTYPE>

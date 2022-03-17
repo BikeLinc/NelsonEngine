@@ -14,7 +14,7 @@
 #ifndef GEOMETRY_H
 #define GEOMETRY_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 struct Geometry {
 	std::vector<float> vertices;

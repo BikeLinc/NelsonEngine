@@ -12,7 +12,7 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 template <class T>
 inline void glBufferDataFromVector(GLenum target, const std::vector<T>& v, GLenum usage) {

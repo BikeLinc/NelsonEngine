@@ -1618,7 +1618,7 @@ void ImStrTrimBlanks(char* buf)
         p--;
     if (p_start != buf)                     // Copy memory if we had leading blanks
         memmove(buf, p_start, p - p_start);
-    buf[p - p_start] = 0;                   // Zero terminate
+    buf[p - p_start] = 0;                   // Zero dispose
 }
 
 const char* ImStrSkipBlank(const char* str)

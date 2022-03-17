@@ -13,7 +13,7 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 struct Scene {
 	std::string name;

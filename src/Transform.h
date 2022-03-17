@@ -1,18 +1,19 @@
-/******************************************************************************
- *
- * @file	Transform.h
- *
- * @author	Lincoln Scheer
- * @since	03/07/2022
- *
- * @brief	Transform is a struct that holds all positional, rotational,
- *		and scale data per model.
- *****************************************************************************/
+//--[Nelson Engine]----------------------------------------------------------//
+// 
+// FILE:     Transform.h
+// 
+// AUTHOR:   Lincoln Scheer
+// 
+// CREATED:  03-07-2022
+// 
+// PURPOSE:  Hold position, rotation, and scale in 3D space.
+// 
+//---------------------------------------------------------------------------// 
 
 #ifndef TRANSFORM_H
 #define TRANSFORM_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 struct Transform {
 	glm::vec3 position;

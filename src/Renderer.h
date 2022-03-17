@@ -11,7 +11,7 @@
 
 #ifndef RENDERER_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 class Renderer : public System {
 public:
@@ -19,6 +19,10 @@ public:
 
 	void init() {
 		glEnable(GL_DEPTH_TEST);
+	}
+
+	void update() override {
+
 	}
 
 	void render(Scene* scene) {
@@ -53,7 +57,7 @@ public:
 	}
 
 	void onNotify(Message message) {
-		postMessage(Message({ CONSOLE_EVENT }, "TEST_FROM_RENDERER"));
+		postMessage(Message({ CONSOLE_EVENT }, "Message \'" + message.getEvent() + "\' is unhandled by Renderer"));
 	}
 };
 

@@ -14,7 +14,7 @@
 #ifndef TEXTURE_H
 #define TEXTURE_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 class TextureLoader {
 public:

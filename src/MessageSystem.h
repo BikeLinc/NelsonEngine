@@ -1,17 +1,13 @@
 #ifndef MESSAGE_SYSTEM_H
 #define MESSAGE_SYSTEM_H
 
-#include <algorithm>
-#include <chrono>
-#include <functional>
-#include <iostream>
-#include <queue>
-#include <vector>
+#include "Nelson.h"
 
 const unsigned int WINDOW_EVENT = 0;
 const unsigned int CONSOLE_EVENT = 1;
 const unsigned int RENDER_EVENT = 2;
 const unsigned int EDITOR_EVENT = 3;
+const unsigned int INPUT_EVENT = 4;
 const unsigned int ENGINE_EVENT = 256;
 
 class Message {
@@ -67,8 +63,7 @@ public:
                 this->messageBus = messageBus;
                 this->messageBus->addReceiver(this->getNotifyFunc());
         }
-
-        virtual void update() {}
+        virtual void update() abstract;
 protected:
         MessageBus* messageBus;
 

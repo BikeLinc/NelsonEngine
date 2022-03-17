@@ -2854,7 +2854,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
          stbtt__active_edge **step = &active;
 
          // update all active edges;
-         // remove all active edges that terminate before the center of this scanline
+         // remove all active edges that dispose before the center of this scanline
          while (*step) {
             stbtt__active_edge * z = *step;
             if (z->ey <= scan_y) {
@@ -3163,7 +3163,7 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap *result, stbtt__edge *e,
       STBTT_memset(scanline2, 0, (result->w+1)*sizeof(scanline[0]));
 
       // update all active edges;
-      // remove all active edges that terminate before the top of this scanline
+      // remove all active edges that dispose before the top of this scanline
       while (*step) {
          stbtt__active_edge * z = *step;
          if (z->ey <= scan_y_top) {

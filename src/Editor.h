@@ -1,7 +1,7 @@
 #ifndef GUI_H
 #define GUI_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 #include "../vendor/imgui/imgui.h"
 #include "../vendor/imgui/backends/imgui_impl_glfw.h"
@@ -201,7 +201,11 @@ public:
                 colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
         }
 
-        void drawInspector(Scene &scene) {
+        void update() override {
+
+        }
+
+        void draw(Scene &scene) {
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
@@ -276,12 +280,17 @@ public:
                         std::time_t t = std::time(0);   // get time now
                         std::tm* now = std::localtime(&t);
                         log.AddLog("[%d-%d-%d %d:%d:%d] > %s\n", (now->tm_mon + 1), now->tm_mday,(now->tm_year + 1900), (now->tm_hour), (now->tm_min), (now->tm_sec),message.getEvent().c_str());
+                        printf("[%d-%d-%d %d:%d:%d] > %s\n", (now->tm_mon + 1), now->tm_mday, (now->tm_year + 1900), (now->tm_hour), (now->tm_min), (now->tm_sec), message.getEvent().c_str());
         }
 };
 
 class Console : public System {
 public:
         Console(MessageBus* messageBus) : System({ ENGINE_EVENT, CONSOLE_EVENT }, messageBus) {}
+
+        void update() override {
+
+        }
 private:
         void onNotify(Message message)
         {

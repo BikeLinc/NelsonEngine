@@ -1,18 +1,19 @@
-/******************************************************************************
- *
- * @file	Window.cpp
- *
- * @author	Lincoln Scheer
- * @since	02/03/2022
- *
- * @brief	GLFW Window Handle API
- *
- *****************************************************************************/
+//--[Nelson Engine]----------------------------------------------------------//
+// 
+// FILE:     Window.cpp
+// 
+// AUTHOR:   Lincoln Scheer
+// 
+// CREATED:  02-03-2022
+// 
+// PURPOSE:  A class that serves as a GLFWwindow handle and provides several
+// functions for interacting with the window and its input.
+// 
+//---------------------------------------------------------------------------//
 
 #include "Window.h"
 
 void Window::init() {
-        this->title = "Nelson";
         this->monitor = nullptr;
         this->mode = nullptr;
         this->window = nullptr;
@@ -20,6 +21,8 @@ void Window::init() {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+// Must define forward compatability on osx because by default opengl is
+// disabled but not yet depreceated.
 #ifdef __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
@@ -29,19 +32,11 @@ void Window::init() {
         if (GLEW_OK != glewInit()) {
                 glfwTerminate();
         }     
-        glfwSwapInterval(1);
-}
-
-void Window::show() {
-        glfwShowWindow(window);
+        glfwSwapInterval(0);
 }
 
 bool Window::isOpen() {
         return !glfwWindowShouldClose(window);
-}
-
-void Window::hide() {
-        glfwHideWindow(window);
 }
 
 void Window::update() {
@@ -49,7 +44,7 @@ void Window::update() {
         glfwPollEvents();
 }
 
-void Window::terminate() {
+void Window::dispose () {
         glfwTerminate();
 }
 
@@ -70,7 +65,16 @@ bool Window::isKeyDown(int key) {
 }
 
 void Window::onNotify(Message message) {
-        postMessage(Message( { CONSOLE_EVENT }, "TEST_FROM_WINDOW"));
+        std::string event = message.getEvent();
+        if (event == "KEY_ESCAPE") {
+                postMessage(Message({ ENGINE_EVENT }, "ENGINE_EXIT"));
+        }
+        else if (event == "ENGINE_EXIT") {
+                glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
+        else {
+                postMessage(Message({ CONSOLE_EVENT }, "Message \'" + event + "\' is unhandled by Window"));
+        }
 }
 
 void Window::createMonitor() {
@@ -89,9 +93,9 @@ void Window::createMode() {
 
 void Window::createWindow(bool fullscreen) {
         if(fullscreen) {
-                window = glfwCreateWindow(mode->width, mode->height, title, monitor, NULL);
+                window = glfwCreateWindow(mode->width, mode->height, "Nelson", monitor, NULL);
         } else if(!fullscreen) {
-                window = glfwCreateWindow(mode->width, mode->height, title, NULL, NULL);
+                window = glfwCreateWindow(mode->width, mode->height, "Nelson", NULL, NULL);
         }
         if (window == NULL)
         {
@@ -119,15 +123,15 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
         Window* handler = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
 
         if (key == GLFW_KEY_ESCAPE) {
-                handler->postMessage(Message({ ENGINE_EVENT }, "KEY_ESCAPE"));
+                handler->postMessage(Message({ CONSOLE_EVENT, INPUT_EVENT }, "KEY_ESCAPE"));
         }
         else if (key == GLFW_KEY_SPACE) {
-                handler->postMessage(Message({ ENGINE_EVENT }, "KEY_SPACE"));
+                handler->postMessage(Message({ CONSOLE_EVENT, INPUT_EVENT }, "KEY_SPACE"));
         }
         else {
                 std::string keyname = glfwGetKeyName(key, scancode);
                 std::transform(keyname.begin(), keyname.end(), keyname.begin(), ::toupper);
-                handler->postMessage(Message({ ENGINE_EVENT }, "KEY_" + keyname));
+                handler->postMessage(Message({ CONSOLE_EVENT, INPUT_EVENT }, "KEY_" + keyname));
         }
 
 

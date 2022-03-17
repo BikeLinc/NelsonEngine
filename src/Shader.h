@@ -18,7 +18,7 @@
 #ifndef SHADER_H
 #define SHADER_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 class Shader
 {

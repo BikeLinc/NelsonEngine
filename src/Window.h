@@ -1,120 +1,65 @@
-/******************************************************************************
- *
- * @file	Window.h
- *
- * @author	Lincoln Scheer
- * @since	02/03/2022
- *
- * @brief	Window is a Nelson utility that provides a high-level
- *		interface for creating and manipulating a cross platform window
- *		that holds an opengl context.
- *
- *****************************************************************************/
+//--[Nelson Engine]----------------------------------------------------------//
+// 
+// FILE:     Window.h
+// 
+// AUTHOR:   Lincoln Scheer
+// 
+// CREATED:  02-03-2022
+// 
+// PURPOSE:  A class that serves as a GLFWwindow handle and provides several
+// functions for interacting with the window and its input.
+// 
+//---------------------------------------------------------------------------//
 
-#ifndef WINDOW_H
-#define WINDOW_H
+#pragma once
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 class Window : System {
 public:
-	/**
-	 * Sets member title variable.
-	 *
-	 * \param title
-	 */
-	Window(MessageBus* bus): System({ENGINE_EVENT, WINDOW_EVENT},bus) {}
+	Window(MessageBus* bus)		// Attach System to Message Bus
+	: System({ENGINE_EVENT, WINDOW_EVENT, INPUT_EVENT},bus) {} 
 
-	/**
-	 * Creates fullscreen window on primary monitor.
-	 *
-	 */
-	void init();
+	void init();			// Create window handle
 
-	/**
-	 * Display window if hidden.
-	 *
-	 */
-	void show();
+	bool isOpen();			// Returns true if window doesn't want
+					// to close
 
-	/**
-	 * Hide window if displayed.
-	 *
-	 */
-	void hide();
+	void update() override;		// Called at the end of every frame
 
-	/**
-	 * Returns the inverse of glfwWindowShouldClose() withought having to
-	 * pass the GLFWwindow handle.
-	 *
-	 * \return
-	 */
-	bool isOpen();
+	void dispose();		// Dispose window handle
 
-	/**
-	 * Swaps renderable buffers and polls window for input events.
-	 *
-	 */
-	void update();
+	GLFWwindow* getWindow();	// Return window handle
 
-	/**
-	 * Frees all GLFW allocations made.
-	 *
-	 */
-	void terminate();
+	GLFWmonitor* getMonitor();	// Return monitor handle
 
-	/**
-	 * Return member GLFWwindow handle.
-	 *
-	 * \return
-	 */
-	GLFWwindow* getWindow();
+	const GLFWvidmode* getVidMode();	// Return video mode handle
 
-	/**
-	 * Return member GLFWmonitor handle.
-	 *
-	 * \return
-	 */
-	GLFWmonitor* getMonitor();
-
-	/**
-	 * Return member const GLFWvidmode.
-	 *
-	 * \return
-	 */
-	const GLFWvidmode* getVidMode();
-
-	/**
-	 * Return true if key is pressed.
-	 * 
-	 * \param key
-	 * \return 
-	 */
-	bool isKeyDown(int key);
+	// Avoid using this function because we now rely on the message bus for
+	// recieving input.
+	bool isKeyDown(int key);	// Return true if key pressed
 
 private:
-	// Window Title, Used For Wincow Creation
-	const char* title;
+	// Handles
+	GLFWmonitor* monitor	= nullptr;
+	const GLFWvidmode* mode = nullptr;
+	GLFWwindow* window	= nullptr;
 
-	// GLFW Members
-	GLFWmonitor* monitor;
-	const GLFWvidmode* mode;
-	GLFWwindow* window;
-
-	// MessageSystem Callback Function
+	// System Callback
 	void onNotify(Message message);
 
 	// GLFW Member Create Functions
-	void createMonitor(); // Returns secondary monitor if availible for debugging, returns main window if not.
-	void createMode();
-	void createWindow(bool fullscreen);
+	void createMonitor();		// Returns secondary monitor if availible for debugging,
+					// returns main window if not.
 
-	// Static Callback Functions
+	void createMode();		// Create video mode based on the monitor
+
+	void createWindow(bool fullscreen);	// Creates window with size depending on
+						// the input paramater fullscreen.
+
+	// Handle Callbacks
 	static void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 	static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
-	static void char_callback(GLFWwindow* window, unsigned int codepoint);
 	static void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 	static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 };
-
-#endif // WINDOW_H

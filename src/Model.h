@@ -13,7 +13,7 @@
 #ifndef MODEL_H
 #define MODEL_H
 
-#include "NelsonEngine.h"
+#include "Nelson.h"
 
 struct Model {
 	const char* name;
