@@ -1,4 +1,4 @@
-Nelson is a game engine and editor that is currently under development. The purpose of this project is to understand the low-level graphics API's that are in play when rendering 3D and 2D models from scratch. This project intends to emphasize developing a robust and easily extendable code base.
+Nelson is a game engine and editor that is currently under development. The purpose of this project is to create a small and portable game engine as a playground for prototyping games.
 
 ## Dependencies
 - [GLEW](https://github.com/nigels-com/glew)
