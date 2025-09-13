@@ -63,7 +63,7 @@ public:
                 this->messageBus = messageBus;
                 this->messageBus->addReceiver(this->getNotifyFunc());
         }
-        virtual void update() abstract;
+        virtual void update() = 0;
 protected:
         MessageBus* messageBus;
 
