@@ -24,6 +24,8 @@ struct Model {
 		unsigned int textureID = 0;
 	};
 
+	std::string ownedName;
+	std::string ownedTexturePath;
 	const char* name;
 	const char* texturePath;
 	unsigned int textureID = 0;
@@ -33,11 +35,17 @@ struct Model {
 	Shader* shader = nullptr;
 	std::vector<Submesh> submeshes;
 	int order = 0;
+	std::string sourceType = "unknown"; // "obj" | "plane"
+	std::string sourceObjPath;
+	std::string sourceMtlDir;
+	glm::vec2 sourcePlaneSize = glm::vec2(1.0f);
 
 	Model(const char* name, const char* texturePath, Geometry geometry, Transform transformOrigin) {
-		this->name = name;
-		this->texturePath = texturePath;
-		textureID = TextureLoader(texturePath).getTexture();
+		ownedName = name ? name : "Model";
+		this->name = ownedName.c_str();
+		ownedTexturePath = texturePath ? texturePath : "";
+		this->texturePath = ownedTexturePath.c_str();
+		textureID = TextureLoader(this->texturePath).getTexture();
 		this->transform = transformOrigin;
 		std::string vertPath = resolveExistingPath({ "res/shaders/vert.glsl", "../res/shaders/vert.glsl" });
 		std::string fragPath = resolveExistingPath({ "res/shaders/frag.glsl", "../res/shaders/frag.glsl" });
@@ -46,13 +54,34 @@ struct Model {
 	}
 
 	Model(const char* name, const char* texturePath, Transform transformOrigin) {
-		this->name = name;
-		this->texturePath = texturePath;
-		TextureLoader texLoader(texturePath);
+		ownedName = name ? name : "Model";
+		this->name = ownedName.c_str();
+		ownedTexturePath = texturePath ? texturePath : "";
+		this->texturePath = ownedTexturePath.c_str();
+		TextureLoader texLoader(this->texturePath);
 		textureID = texLoader.getTexture();
 		int max = std::max(texLoader.width, texLoader.height);
 		this->meshBounds = glm::vec2(texLoader.width / max, texLoader.height / max);
 		this->transform = transformOrigin;
+		sourceType = "plane";
+		sourcePlaneSize = meshBounds;
+		std::string vertPath = resolveExistingPath({ "res/shaders/vert.glsl", "../res/shaders/vert.glsl" });
+		std::string fragPath = resolveExistingPath({ "res/shaders/frag.glsl", "../res/shaders/frag.glsl" });
+		shader = new Shader(vertPath.c_str(), fragPath.c_str());
+		setSingleMesh(PlaneGeometry(meshBounds), textureID);
+	}
+
+	Model(const char* name, const char* texturePath, glm::vec2 planeSize, Transform transformOrigin) {
+		ownedName = name ? name : "Model";
+		this->name = ownedName.c_str();
+		ownedTexturePath = texturePath ? texturePath : "";
+		this->texturePath = ownedTexturePath.c_str();
+		TextureLoader texLoader(this->texturePath);
+		textureID = texLoader.getTexture();
+		this->meshBounds = planeSize;
+		this->transform = transformOrigin;
+		sourceType = "plane";
+		sourcePlaneSize = planeSize;
 		std::string vertPath = resolveExistingPath({ "res/shaders/vert.glsl", "../res/shaders/vert.glsl" });
 		std::string fragPath = resolveExistingPath({ "res/shaders/frag.glsl", "../res/shaders/frag.glsl" });
 		shader = new Shader(vertPath.c_str(), fragPath.c_str());
@@ -61,10 +90,13 @@ struct Model {
 
 	// Constructor for OBJ loading (no texture initially)
 	Model(const char* name, Transform transformOrigin) {
-		this->name = name;
+		ownedName = name ? name : "Model";
+		this->name = ownedName.c_str();
+		ownedTexturePath = "";
 		this->texturePath = nullptr;
 		this->textureID = getFallbackTexture();
 		this->transform = transformOrigin;
+		sourceType = "obj";
 		std::string vertPath = resolveExistingPath({ "res/shaders/vert.glsl", "../res/shaders/vert.glsl" });
 		std::string fragPath = resolveExistingPath({ "res/shaders/frag.glsl", "../res/shaders/frag.glsl" });
 		shader = new Shader(vertPath.c_str(), fragPath.c_str());
@@ -76,6 +108,9 @@ struct Model {
 
 	// Helper: load OBJ/MTL after construction
 	bool LoadOBJ(const char* objPath, const char* mtlBaseDir) {
+		sourceType = "obj";
+		sourceObjPath = objPath ? objPath : "";
+		sourceMtlDir = mtlBaseDir ? mtlBaseDir : "";
 		tinyobj::attrib_t attrib;
 		std::vector<tinyobj::shape_t> shapes;
 		std::vector<tinyobj::material_t> materials;

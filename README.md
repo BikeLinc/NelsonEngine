@@ -1,26 +1,46 @@
 Nelson is a game engine and editor that is currently under development. The purpose of this project is to create a small and portable game engine as a playground for prototyping games.
 
 ## Requirements
-Supports `macOS` and `debian` based linux distros.
+Supports `macOS` and Debian-based Linux distros.
+
+- C++17 compiler (`g++`/`clang++`)
+- CMake (3.1+)
+- OpenGL development libraries
 
 ## Dependencies
-- [GLEW](https://github.com/nigels-com/glew)
-- [GLFW](https://github.com/glfw/glfw)
-- [GLM](https://github.com/g-truc/glm)
-- [SOIL2](https://github.com/SpartanJ/SOIL2)
-- [IMGUI](https://github.com/ocornut/imgui)
+This project vendors most dependencies directly in the repo:
+
+- [GLEW](https://github.com/nigels-com/glew) - OpenGL extension loading
+- [GLFW](https://github.com/glfw/glfw) - windowing/input/context
+- [GLM](https://github.com/g-truc/glm) - math library
+- [SOIL2](https://github.com/SpartanJ/SOIL2) - texture/image loading
+- [Dear ImGui](https://github.com/ocornut/imgui) - editor UI
+- [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader) - OBJ/MTL model loading
+
+Scene serialization currently uses an in-tree parser/writer:
+
+- `src/SimpleJson.h` - lightweight internal JSON parser/writer (no external JSON dependency)
 
 ## Architecture
-The engine architecture is largely inspired by the brilliant interface that [Unity](https://unity.com/) uses. The name of the game is clean class design.
+The editor/runtime follows a lightweight ECS-style flow with JSON scene I/O.
+
+![Nelson Architecture Diagram](docs/architecture.png)
 
 ## Quick Start on Linux
 ```
-sudo apt install cmake build-essential libglew-dev libglfw3-dev libglm-dev libxinerama-dev libxcursor-dev libxi-dev 
+sudo apt install cmake build-essential libglew-dev libglfw3-dev libglm-dev libgl1-mesa-dev libxinerama-dev libxcursor-dev libxi-dev
 mkdir -p build
 cd build
 cmake ..
 make
 ```
 
-## Current UML Diagram
-![UML](https://github.com/BikeLinc/NelsonEngine/blob/main/engine-uml-030822.png)
+Run from project root:
+```
+./Nelson
+```
+
+Run with an explicit startup scene JSON:
+```
+./Nelson res/scenes/default.scene.json
+```

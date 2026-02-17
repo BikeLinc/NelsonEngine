@@ -36,10 +36,19 @@ struct Scene {
 		}
 	}
 
-	void destroy() {
+	void clear() {
 		for (int i = 0; i < models.size(); i++) {
-			models.at(i)->destroy();
+			if (models.at(i) != nullptr) {
+				models.at(i)->destroy();
+				delete models.at(i);
+				models.at(i) = nullptr;
+			}
 		}
+		models.clear();
+	}
+
+	void destroy() {
+		clear();
 	}
 };
 

@@ -13,14 +13,15 @@
  * development notes and more information.
  *
  * \file   main.cpp
- * \brief  Simple demo implementation of the Game class.
- *
+ * \brief  Runtime bootstrap that loads scene JSON and starts the game loop.
  *
  * \author Lincoln Scheer
  * \date   March 2022
  *********************************************************************/
 
 #include "Game.h"
+#include "SimpleJson.h"
+
 #include <filesystem>
 
 using namespace Nelson;
@@ -28,77 +29,228 @@ namespace fs = std::filesystem;
 
 class MyGame : public Game{
 public:
-	std::vector<Model*> loadedModels;
-	std::vector<std::string> loadedModelNames;
+	explicit MyGame(std::string startupScenePath = "")
+		: startupScenePath(std::move(startupScenePath)) {}
 
 	void start() override {
-		scene = new Scene("example-scene", glm::vec4(0.25, 0.25, 0.35, 1.0));
-		const std::vector<fs::path> modelRoots = {
-			fs::path("res/models"),
-			fs::path("../res/models")
-		};
+		scene = new Scene("runtime-scene", glm::vec4(0.25f, 0.25f, 0.35f, 1.0f));
+		sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Runtime boot."));
 
-		bool foundModelRoot = false;
-		for (const fs::path& root : modelRoots) {
-			if (!fs::exists(root) || !fs::is_directory(root)) {
+		std::vector<std::string> sceneCandidates;
+		if (!startupScenePath.empty()) {
+			sceneCandidates.push_back(startupScenePath);
+		}
+		sceneCandidates.push_back("res/scenes/default.scene.json");
+		sceneCandidates.push_back("../res/scenes/default.scene.json");
+
+		bool loaded = false;
+		std::string loadedPath;
+		std::string lastError;
+		for (const std::string& scenePath : sceneCandidates) {
+			if (!fs::exists(scenePath)) {
 				continue;
 			}
-			foundModelRoot = true;
-			loadModelsRecursively(root);
-			break;
+
+			if (loadSceneJson(scenePath, *scene, &lastError)) {
+				loaded = true;
+				loadedPath = scenePath;
+				break;
+			}
 		}
 
-		if (!foundModelRoot) {
-			std::cout << "[Demo] No model root found at 'res/models'." << std::endl;
-		}
-		if (loadedModels.empty()) {
-			std::cout << "[Demo] No OBJ models were loaded." << std::endl;
+		if (loaded) {
+			sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Loaded JSON scene: " + loadedPath));
+			sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Entities: " + std::to_string(scene->models.size())));
 		} else {
-			std::cout << "[Demo] Loaded " << loadedModels.size() << " model(s) from nested folders." << std::endl;
+			if (!lastError.empty()) {
+				sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Failed to load startup scene: " + lastError));
+			} else {
+				sendMessage(Message({ CONSOLE_EVENT }, "[Scene] No startup JSON scene found."));
+			}
 		}
 	}
 
 	void update() override{
-		// Static demo scene.
+		// Runtime update hook.
 	}
 
-	void dispose() override{ 
-		// Called before engine shuts down...
+	void dispose() override{
+		// Runtime dispose hook.
 	}
 
 private:
-	void loadModelsRecursively(const fs::path& root) {
-		for (const auto& entry : fs::recursive_directory_iterator(root)) {
-			if (!entry.is_regular_file()) {
-				continue;
+	std::string startupScenePath;
+
+	static bool jsonToVec2(const SimpleJson::Value* value, glm::vec2& out) {
+		if (value == nullptr || !value->isArray() || value->arrayValue.size() != 2) {
+			return false;
+		}
+		if (!value->arrayValue[0].isNumber() || !value->arrayValue[1].isNumber()) {
+			return false;
+		}
+		out.x = static_cast<float>(value->arrayValue[0].numberValue);
+		out.y = static_cast<float>(value->arrayValue[1].numberValue);
+		return true;
+	}
+
+	static bool jsonToVec3(const SimpleJson::Value* value, glm::vec3& out) {
+		if (value == nullptr || !value->isArray() || value->arrayValue.size() != 3) {
+			return false;
+		}
+		if (!value->arrayValue[0].isNumber() || !value->arrayValue[1].isNumber() || !value->arrayValue[2].isNumber()) {
+			return false;
+		}
+		out.x = static_cast<float>(value->arrayValue[0].numberValue);
+		out.y = static_cast<float>(value->arrayValue[1].numberValue);
+		out.z = static_cast<float>(value->arrayValue[2].numberValue);
+		return true;
+	}
+
+	static bool jsonToVec4(const SimpleJson::Value* value, glm::vec4& out) {
+		if (value == nullptr || !value->isArray() || value->arrayValue.size() != 4) {
+			return false;
+		}
+		if (!value->arrayValue[0].isNumber() || !value->arrayValue[1].isNumber() ||
+			!value->arrayValue[2].isNumber() || !value->arrayValue[3].isNumber()) {
+			return false;
+		}
+		out.x = static_cast<float>(value->arrayValue[0].numberValue);
+		out.y = static_cast<float>(value->arrayValue[1].numberValue);
+		out.z = static_cast<float>(value->arrayValue[2].numberValue);
+		out.w = static_cast<float>(value->arrayValue[3].numberValue);
+		return true;
+	}
+
+	static std::string firstExistingPath(const std::string& rawPath, const fs::path& sceneFileDir, bool wantDirectory) {
+		std::vector<fs::path> candidates;
+		candidates.push_back(fs::path(rawPath));
+
+		if (!rawPath.empty() && rawPath[0] != '/' && !(rawPath.size() > 1 && rawPath[1] == ':')) {
+			candidates.push_back((sceneFileDir / rawPath).lexically_normal());
+			candidates.push_back((fs::path("..") / rawPath).lexically_normal());
+		}
+
+		for (const fs::path& p : candidates) {
+			if (wantDirectory) {
+				if (fs::exists(p) && fs::is_directory(p)) {
+					std::string resolved = p.generic_string();
+					if (!resolved.empty() && resolved.back() != '/') {
+						resolved.push_back('/');
+					}
+					return resolved;
+				}
+			} else {
+				if (fs::exists(p) && fs::is_regular_file(p)) {
+					return p.generic_string();
+				}
 			}
-			const fs::path& file = entry.path();
-			std::string extension = file.extension().string();
-			std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-			if (extension != ".obj") {
+		}
+
+		return rawPath;
+	}
+
+	bool loadSceneJson(const std::string& path, Scene& sceneRef, std::string* error) {
+		SimpleJson::Value root;
+		if (!SimpleJson::parseFile(path, root, error)) {
+			return false;
+		}
+
+		const SimpleJson::Value* sceneObj = root.get("scene");
+		if (sceneObj == nullptr || !sceneObj->isObject()) {
+			if (error != nullptr) {
+				*error = "Missing 'scene' object.";
+			}
+			return false;
+		}
+
+		glm::vec4 loadedColor;
+		if (!jsonToVec4(sceneObj->get("color"), loadedColor)) {
+			if (error != nullptr) {
+				*error = "Invalid scene color.";
+			}
+			return false;
+		}
+
+		const SimpleJson::Value* modelsValue = sceneObj->get("models");
+		if (modelsValue == nullptr || !modelsValue->isArray()) {
+			if (error != nullptr) {
+				*error = "Missing models array.";
+			}
+			return false;
+		}
+
+		sceneRef.clear();
+		const SimpleJson::Value* nameValue = sceneObj->get("name");
+		sceneRef.name = (nameValue != nullptr && nameValue->isString()) ? nameValue->stringValue : "scene";
+		sceneRef.color = loadedColor;
+
+		fs::path sceneFileDir = fs::path(path).parent_path();
+		for (const SimpleJson::Value& modelValue : modelsValue->arrayValue) {
+			if (!modelValue.isObject()) {
 				continue;
 			}
 
-			loadedModelNames.push_back(file.stem().string());
-			Model* model = new Model(loadedModelNames.back().c_str(), Transform());
-			const std::string objPath = file.generic_string();
-			const std::string mtlDir = file.parent_path().generic_string() + "/";
-			if (model->LoadOBJ(objPath.c_str(), mtlDir.c_str())) {
-				model->transform.scale = glm::vec3(0.01f);
-				const float xOffset = static_cast<float>(loadedModels.size()) * 2.5f;
-				model->transform.position = glm::vec3(xOffset, 0.0f, -2.0f);
-				this->scene->add(model);
-				loadedModels.push_back(model);
-				std::cout << "[Demo] Loaded OBJ: " << objPath << std::endl;
-			} else {
-				std::cout << "[Demo] Failed OBJ: " << objPath << std::endl;
-				delete model;
+			const SimpleJson::Value* modelName = modelValue.get("name");
+			const SimpleJson::Value* modelType = modelValue.get("type");
+			const SimpleJson::Value* modelOrder = modelValue.get("order");
+			const SimpleJson::Value* modelTransform = modelValue.get("transform");
+			if (modelName == nullptr || !modelName->isString() ||
+				modelType == nullptr || !modelType->isString() ||
+				modelOrder == nullptr || !modelOrder->isNumber() ||
+				modelTransform == nullptr || !modelTransform->isObject()) {
+				continue;
 			}
+
+			Transform transform;
+			if (!jsonToVec3(modelTransform->get("position"), transform.position) ||
+				!jsonToVec3(modelTransform->get("rotation"), transform.rotation) ||
+				!jsonToVec3(modelTransform->get("scale"), transform.scale)) {
+				continue;
+			}
+
+			Model* model = nullptr;
+			if (modelType->stringValue == "obj") {
+				const SimpleJson::Value* objPath = modelValue.get("obj_path");
+				const SimpleJson::Value* mtlDir = modelValue.get("mtl_dir");
+				if (objPath == nullptr || !objPath->isString() || mtlDir == nullptr || !mtlDir->isString()) {
+					continue;
+				}
+
+				std::string resolvedObjPath = firstExistingPath(objPath->stringValue, sceneFileDir, false);
+				std::string resolvedMtlDir = firstExistingPath(mtlDir->stringValue, sceneFileDir, true);
+				model = new Model(modelName->stringValue.c_str(), transform);
+				if (!model->LoadOBJ(resolvedObjPath.c_str(), resolvedMtlDir.c_str())) {
+					delete model;
+					model = nullptr;
+					continue;
+				}
+			} else if (modelType->stringValue == "plane") {
+				const SimpleJson::Value* texture = modelValue.get("texture");
+				const SimpleJson::Value* size = modelValue.get("size");
+				glm::vec2 bounds;
+				if (texture == nullptr || !texture->isString() || !jsonToVec2(size, bounds)) {
+					continue;
+				}
+				const std::string resolvedTexture = firstExistingPath(texture->stringValue, sceneFileDir, false);
+				model = new Model(modelName->stringValue.c_str(), resolvedTexture.c_str(), bounds, transform);
+			} else {
+				continue;
+			}
+
+			model->order = static_cast<int>(modelOrder->numberValue);
+			sceneRef.add(model);
 		}
+
+		return true;
 	}
 };
 
-int main() {
-	MyGame game;
+int main(int argc, char** argv) {
+	std::string startupScenePath;
+	if (argc > 1 && argv[1] != nullptr) {
+		startupScenePath = argv[1];
+	}
+
+	MyGame game(startupScenePath);
 	game.run();
 }

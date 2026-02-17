@@ -1,0 +1,82 @@
+digraph NelsonArchitecture {
+  rankdir=LR;
+  bgcolor="white";
+  graph [pad="0.2", nodesep="0.50", ranksep="0.70", splines=true];
+  node [shape=box, style="rounded,filled", fillcolor="#f7f9fc", color="#3b4b63", fontname="Helvetica", fontsize=11];
+  edge [color="#5c6f8a", arrowsize=0.7, penwidth=1.1];
+
+  Main [label="main.cpp"];
+  MyGame [label="MyGame : Game\n(start/update/dispose)"];
+  RunLoop [label="Game::run / _loop\ninit -> start -> frame loop"];
+  Main -> MyGame -> RunLoop;
+
+  subgraph cluster_systems {
+    label="Systems (MessageBus receivers)";
+    color="#9fb2cc";
+    style="rounded";
+
+    Bus [label="MessageBus"];
+    WindowSys [label="Window System"];
+    RendererSys [label="Renderer System"];
+    EditorSys [label="Editor System\n(ImGui)"];
+    ConsoleSys [label="Console System"];
+
+    Bus -> WindowSys;
+    Bus -> RendererSys;
+    Bus -> EditorSys;
+    Bus -> ConsoleSys;
+  }
+
+  RunLoop -> Bus [label="send + notify"];
+  RunLoop -> RendererSys [label="render(scene)"];
+  RunLoop -> EditorSys [label="draw(scene)"];
+  RunLoop -> WindowSys [label="update()"];
+
+  subgraph cluster_ecs {
+    label="Scene / ECS-style Data";
+    color="#9fb2cc";
+    style="rounded";
+
+    Scene [label="Scene\nname, color, offset:Transform\nmodels: vector<Model*>"];
+    SceneUpdate [label="Scene::update(dt)\nfor each model -> model.update(dt)"];
+    Model [label="Model\norder, transform\nsourceType, source paths"];
+    Transform [label="Transform\nposition, rotation, scale"];
+    Mesh [label="Mesh\nVAO, VBO, EBO\nGeometry copy"];
+    Submesh [label="Submesh[]\nmesh + material texture"];
+    Geometry [label="Geometry\nvertices + indices"];
+    Shader [label="Shader\nvert.glsl + frag.glsl"];
+    Texture [label="TextureLoader\n2D textures"];
+    ObjLoad [label="OBJ/MTL import\ntinyobjloader"];
+
+    Scene -> SceneUpdate;
+    Scene -> Model [label="owns"];
+    Scene -> Transform [label="offset"];
+
+    Model -> Transform [label="has"];
+    Model -> Mesh [label="single mesh path"];
+    Model -> Submesh [label="OBJ path"];
+    Mesh -> Geometry;
+    Model -> Shader;
+    Model -> Texture;
+    Model -> ObjLoad;
+  }
+
+  RunLoop -> Scene [label="scene->update(dt)"];
+  RendererSys -> Scene [label="iterate models"];
+  RendererSys -> Model [label="model.draw(offset)"];
+
+  subgraph cluster_io {
+    label="Scene Serialization";
+    color="#9fb2cc";
+    style="rounded";
+
+    SceneFile [label="res/scenes/*.scene.json"];
+    EditorIO [label="Editor save/load\n+ console commands"];
+    Json [label="SimpleJson.h\nparse + write"];
+  }
+
+  EditorSys -> EditorIO;
+  EditorIO -> Json;
+  Json -> SceneFile;
+  EditorIO -> Scene [label="populate / export"];
+}

@@ -25,7 +25,7 @@ void Nelson::Game::_init() {
 }
 
 void Nelson::Game::_dispose() {
-	if (scene == nullptr) {
+	if (scene != nullptr) {
 		scene->destroy();
 	}
 	editor->terminate();
