@@ -5,11 +5,12 @@ in vec2 TexCoord;
 
 // texture samplers
 uniform sampler2D textureSRC;
+uniform vec4 uTint;
 
 void main()
 {
 	vec4 texColor = texture(textureSRC, TexCoord);
     if(texColor.a < 0.1)
         discard;
-    FragColor = texColor;
+    FragColor = texColor * uTint;
 }

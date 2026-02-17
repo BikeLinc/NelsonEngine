@@ -1,0 +1,9 @@
+{
+  "name": "default",
+  "version": 1,
+  "paths": {
+    "scenes": "projects/default/scenes",
+    "assets": "projects/default/assets"
+  },
+  "inherits_shared_assets": true
+}

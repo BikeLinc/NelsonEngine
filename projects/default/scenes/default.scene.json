@@ -1,0 +1,26 @@
+{
+  "scene": {
+    "color": [
+      0.25,
+      0.25,
+      0.35,
+      1.0
+    ],
+    "models": [
+      {
+        "mtl_dir": "projects/default/assets/models/sponza/",
+        "name": "sponza",
+        "obj_path": "projects/default/assets/models/sponza/sponza.obj",
+        "order": 0,
+        "transform": {
+          "position": [0.0, 0.0, -4.0],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.01, 0.01, 0.01]
+        },
+        "type": "obj"
+      }
+    ],
+    "name": "default-scene"
+  },
+  "version": 1
+}

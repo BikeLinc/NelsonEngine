@@ -8,26 +8,14 @@
     ],
     "models": [
       {
-        "mtl_dir": "res/models/sponza/",
+        "mtl_dir": "projects/default/assets/models/sponza/",
         "name": "sponza",
-        "obj_path": "res/models/sponza/sponza.obj",
+        "obj_path": "projects/default/assets/models/sponza/sponza.obj",
         "order": 0,
         "transform": {
-          "position": [
-            0.0,
-            0.0,
-            -4.0
-          ],
-          "rotation": [
-            0.0,
-            0.0,
-            0.0
-          ],
-          "scale": [
-            0.01,
-            0.01,
-            0.01
-          ]
+          "position": [0.0, 0.0, -4.0],
+          "rotation": [0.0, 0.0, 0.0],
+          "scale": [0.01, 0.01, 0.01]
         },
         "type": "obj"
       }

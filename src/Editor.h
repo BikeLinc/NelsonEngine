@@ -139,8 +139,14 @@ struct GuiLog
 
 class Editor : public System {
 public:
+        enum class PrimitiveType {
+                Plane,
+                Cube,
+                Sphere
+        };
+
         GuiLog log;
-        int selectedModelIndex = -1;
+        Entity* selectedEntity = nullptr;
         bool sceneRootSelected = true;
         float leftPanelWidth = 280.0f;
         float rightPanelWidth = 320.0f;
@@ -149,10 +155,11 @@ public:
         unsigned int sceneTextureID = 0;
         int sceneTextureWidth = 0;
         int sceneTextureHeight = 0;
-        std::string sceneDialogDirectory = "res/scenes";
+        std::string currentProjectName = "default";
+        std::string sceneDialogDirectory = "projects/default/scenes";
         int workspaceTabIndex = 0;
         int requestedWorkspaceTabIndex = -1;
-        char sceneJsonPath[256] = "res/scenes/default.scene.json";
+        char sceneJsonPath[256] = "projects/default/scenes/default.scene.json";
         char consoleCommandBuffer[512] = "";
 
         Editor(MessageBus* bus) : System({ ENGINE_EVENT, EDITOR_EVENT, CONSOLE_EVENT}, bus) {}
@@ -280,7 +287,7 @@ public:
                                         scene.name = "scene";
                                         scene.color = glm::vec4(0.25f, 0.25f, 0.35f, 1.0f);
                                         sceneRootSelected = true;
-                                        selectedModelIndex = -1;
+                                        selectedEntity = nullptr;
                                         log.AddLog("[SCENE] Created new scene.\n");
                                 }
                                 if (ImGui::MenuItem("Open Scene JSON...")) {
@@ -337,13 +344,13 @@ public:
 
                 ImGuiWindowFlags dockedWindowFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
                 static char primitiveName[128] = "Model";
-                static char primitiveTexturePath[128] = "res/images/chong.png";
+                static char primitiveTexturePath[128] = "res/images/default_white.png";
                 static glm::vec2 primitiveBounds = glm::vec2(1.0f);
                 static Transform primitiveTransform;
                 static char loadName[128] = "Model";
                 static Transform loadTransform;
-                static char objPath[256] = "res/models/sponza/sponza.obj";
-                static char mtlDir[256] = "res/models/sponza/";
+                static char objPath[256] = "projects/default/assets/models/sponza/sponza.obj";
+                static char mtlDir[256] = "projects/default/assets/models/sponza/";
 
                 ImGui::SetNextWindowPos(ImVec2(0.0f, menuBarHeight));
                 ImGui::SetNextWindowSize(ImVec2(displaySize.x, toolbarHeight));
@@ -365,6 +372,8 @@ public:
                         if (ImGui::Button("Scene Files")) {
                                 requestedWorkspaceTabIndex = 1;
                         }
+                        ImGui::SameLine();
+                        ImGui::Checkbox("Wireframe", &scene.wireframeMode);
                         ImGui::SameLine();
                         ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
                 }
@@ -419,25 +428,105 @@ public:
                 ImGui::SetNextWindowPos(ImVec2(0.0f, contentTop));
                 ImGui::SetNextWindowSize(ImVec2(leftPanelWidth, mainHeight));
                 if (ImGui::Begin("Hierarchy", nullptr, dockedWindowFlags | ImGuiWindowFlags_NoResize)) {
+                        auto drawHierarchyCreateMenu = [&](Entity* parent) {
+                                if (ImGui::BeginMenu("Create")) {
+                                        if (ImGui::MenuItem("Empty Entity")) {
+                                                addEmptyEntityToScene(scene, parent);
+                                        }
+                                        if (ImGui::BeginMenu("Primitive")) {
+                                                if (ImGui::MenuItem("Plane")) {
+                                                        addPrimitiveToScene(scene, PrimitiveType::Plane, parent);
+                                                }
+                                                if (ImGui::MenuItem("Cube")) {
+                                                        addPrimitiveToScene(scene, PrimitiveType::Cube, parent);
+                                                }
+                                                if (ImGui::MenuItem("Sphere")) {
+                                                        addPrimitiveToScene(scene, PrimitiveType::Sphere, parent);
+                                                }
+                                                ImGui::EndMenu();
+                                        }
+                                        ImGui::EndMenu();
+                                }
+                        };
+
+                        std::function<void(Entity*)> drawEntityNode = [&](Entity* entity) {
+                                if (entity == nullptr) {
+                                        return;
+                                }
+                                ImGuiTreeNodeFlags entityFlags = ImGuiTreeNodeFlags_SpanAvailWidth;
+                                if (entity == selectedEntity && !sceneRootSelected) {
+                                        entityFlags |= ImGuiTreeNodeFlags_Selected;
+                                }
+                                if (entity->children.empty()) {
+                                        entityFlags |= ImGuiTreeNodeFlags_Leaf;
+                                }
+
+                                const bool openEntity = ImGui::TreeNodeEx(entity, entityFlags, "%s", entity->name.c_str());
+                                if (ImGui::IsItemClicked()) {
+                                        selectedEntity = entity;
+                                        sceneRootSelected = false;
+                                }
+                                if (ImGui::BeginPopupContextItem("EntityHierarchyContext")) {
+                                        drawHierarchyCreateMenu(entity);
+                                        ImGui::Separator();
+                                        if (!entity->hasRenderable) {
+                                                if (ImGui::BeginMenu("Add Renderable Component")) {
+                                                        if (ImGui::MenuItem("Plane")) {
+                                                                attachRenderableComponent(entity, PrimitiveType::Plane);
+                                                        }
+                                                        if (ImGui::MenuItem("Cube")) {
+                                                                attachRenderableComponent(entity, PrimitiveType::Cube);
+                                                        }
+                                                        if (ImGui::MenuItem("Sphere")) {
+                                                                attachRenderableComponent(entity, PrimitiveType::Sphere);
+                                                        }
+                                                        ImGui::EndMenu();
+                                                }
+                                        } else if (ImGui::MenuItem("Remove Renderable Component")) {
+                                                detachRenderableComponent(entity);
+                                        }
+                                        if (ImGui::MenuItem("Delete Entity")) {
+                                                Entity* toDelete = entity;
+                                                if (scene.removeEntity(toDelete)) {
+                                                        if (selectedEntity == toDelete) {
+                                                                selectedEntity = nullptr;
+                                                                sceneRootSelected = true;
+                                                        }
+                                                }
+                                        }
+                                        ImGui::EndPopup();
+                                }
+
+                                if (openEntity) {
+                                        for (Entity* child : entity->children) {
+                                                drawEntityNode(child);
+                                        }
+                                        ImGui::TreePop();
+                                }
+                        };
+
                         ImGuiTreeNodeFlags sceneFlags = ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
                         bool openScene = ImGui::TreeNodeEx("Scene", sceneFlags);
                         if (ImGui::IsItemClicked()) {
                                 sceneRootSelected = true;
-                                selectedModelIndex = -1;
+                                selectedEntity = nullptr;
+                        }
+                        if (ImGui::BeginPopupContextItem("SceneHierarchyContext")) {
+                                drawHierarchyCreateMenu(nullptr);
+                                ImGui::EndPopup();
                         }
 
                         if (openScene) {
-                                for (int i = 0; i < scene.models.size(); i++) {
-                                        Model* model = scene.models[i];
-                                        const char* modelName = (model && model->name) ? model->name : "Model";
-                                        ImGui::PushID(i);
-                                        if (ImGui::Selectable(modelName, (!sceneRootSelected && selectedModelIndex == i))) {
-                                                selectedModelIndex = i;
-                                                sceneRootSelected = false;
-                                        }
-                                        ImGui::PopID();
+                                for (Entity* entity : scene.entities) {
+                                        drawEntityNode(entity);
                                 }
                                 ImGui::TreePop();
+                        }
+
+                        // Right-clicking empty hierarchy space opens create menu too.
+                        if (ImGui::BeginPopupContextWindow("HierarchyWindowContext", ImGuiPopupFlags_NoOpenOverItems | ImGuiPopupFlags_MouseButtonRight)) {
+                                drawHierarchyCreateMenu(nullptr);
+                                ImGui::EndPopup();
                         }
                 }
                 ImGui::End();
@@ -485,9 +574,10 @@ public:
                                         ImGui::Text("Load/Save Scene JSON");
                                         const std::string projectRoot = detectProjectRootPath().lexically_normal().generic_string();
                                         ImGui::TextWrapped("Project Root: %s", projectRoot.c_str());
+                                        ImGui::Text("Current Project: %s", currentProjectName.c_str());
                                         ImGui::SameLine();
                                         if (ImGui::Button("Use Project Scenes Dir")) {
-                                                std::filesystem::path projectSceneDir = (detectProjectRootPath() / "res/scenes").lexically_normal();
+                                                std::filesystem::path projectSceneDir = currentProjectScenesPath();
                                                 sceneDialogDirectory = projectSceneDir.generic_string();
                                         }
                                         ImGui::Separator();
@@ -523,18 +613,36 @@ public:
                                 ImGui::Text("Viewport");
                                 ImGui::ColorEdit4("Clear Color", &scene.color.x);
                                 ImGui::Separator();
-                                ImGui::Text("Model Count: %d", static_cast<int>(scene.models.size()));
-                        } else if (selectedModelIndex >= 0 && selectedModelIndex < scene.models.size()) {
-                                Model* model = scene.models[selectedModelIndex];
-                                const char* modelName = (model && model->name) ? model->name : "Model";
-                                ImGui::Text("%s", modelName);
+                                ImGui::Text("Entity Count: %d", static_cast<int>(scene.entities.size()));
+                                ImGui::Text("Renderable: %d", scene.renderableCount());
+                        } else if (selectedEntity != nullptr) {
+                                Entity* entity = selectedEntity;
+                                ImGui::Text("%s", entity->name.c_str());
                                 ImGui::Separator();
-                                ImGui::DragInt("Order", &model->order);
-                                ImGui::DragFloat3("Position", &model->transform.position.x, 0.1f, -1000.0f, 1000.0f);
-                                ImGui::DragFloat3("Rotation", &model->transform.rotation.x, 0.1f, -180.0f, 180.0f);
-                                ImGui::DragFloat3("Scale", &model->transform.scale.x, 0.001f, 0.001f, 100.0f);
+                                ImGui::DragInt("Order", &entity->order);
+                                ImGui::DragFloat3("Position", &entity->transform.position.x, 0.1f, -1000.0f, 1000.0f);
+                                ImGui::DragFloat3("Rotation", &entity->transform.rotation.x, 0.1f, -180.0f, 180.0f);
+                                ImGui::DragFloat3("Scale", &entity->transform.scale.x, 0.001f, 0.001f, 100.0f);
+                                ImGui::Separator();
+                                const bool wasRenderable = entity->hasRenderable;
+                                ImGui::Checkbox("Renderable", &entity->hasRenderable);
+                                if (!wasRenderable && entity->hasRenderable) {
+                                        attachRenderableComponent(entity, PrimitiveType::Cube);
+                                } else if (wasRenderable && !entity->hasRenderable) {
+                                        detachRenderableComponent(entity);
+                                }
+
+                                if (entity->hasRenderable) {
+                                        ImGui::ColorEdit4("Tint", &entity->material.tint.x);
+                                        ImGui::SliderFloat("Metallic", &entity->material.metallic, 0.0f, 1.0f);
+                                        ImGui::SliderFloat("Roughness", &entity->material.roughness, 0.0f, 1.0f);
+                                        ImGui::Checkbox("Wireframe (Entity)", &entity->material.wireframe);
+                                } else {
+                                        ImGui::Checkbox("Show Origin Marker", &entity->showOriginMarker);
+                                        ImGui::ColorEdit4("Marker Color", &entity->material.tint.x);
+                                }
                         } else {
-                                ImGui::Text("Select a model in Hierarchy.");
+                                ImGui::Text("Select an entity in Hierarchy.");
                         }
                 }
                 ImGui::End();
@@ -548,7 +656,7 @@ public:
                         ImGui::SetNextItemWidth(-70.0f);
                         const bool submitted = ImGui::InputTextWithHint(
                                 "##ConsoleCommand",
-                                "save | saveas \"scene\" | load \"scene\" | help",
+                                "save | saveas \"scene\" | load \"scene\" | project \"name\" | help",
                                 consoleCommandBuffer,
                                 IM_ARRAYSIZE(consoleCommandBuffer),
                                 ImGuiInputTextFlags_EnterReturnsTrue);
@@ -572,12 +680,12 @@ public:
                         ImGui::SameLine();
                         ImGui::Text("| FPS: %.1f", ImGui::GetIO().Framerate);
                         ImGui::SameLine();
-                        ImGui::Text("| Models: %d", static_cast<int>(scene.models.size()));
+                        ImGui::Text("| Entities: %d", static_cast<int>(scene.entities.size()));
                         ImGui::SameLine();
                         if (sceneRootSelected) {
                                 ImGui::Text("| Selected: Scene");
                         } else {
-                                ImGui::Text("| Selected: %d", selectedModelIndex);
+                                ImGui::Text("| Selected: %s", selectedEntity ? selectedEntity->name.c_str() : "<none>");
                         }
                 }
                 ImGui::End();
@@ -605,6 +713,163 @@ public:
         }
 
 private:
+        static std::string primitiveBaseName(PrimitiveType type) {
+                switch (type) {
+                case PrimitiveType::Plane:
+                        return "Plane";
+                case PrimitiveType::Cube:
+                        return "Cube";
+                case PrimitiveType::Sphere:
+                        return "Sphere";
+                }
+                return "Model";
+        }
+
+        static std::string makeUniqueModelName(const Scene& scene, const std::string& baseName) {
+                std::function<bool(const Entity*, const std::string&)> existsInTree =
+                        [&](const Entity* entity, const std::string& candidate) -> bool {
+                                if (entity == nullptr) {
+                                        return false;
+                                }
+                                if (entity->name == candidate) {
+                                        return true;
+                                }
+                                for (const Entity* child : entity->children) {
+                                        if (existsInTree(child, candidate)) {
+                                                return true;
+                                        }
+                                }
+                                return false;
+                        };
+                auto exists = [&](const std::string& candidate) -> bool {
+                        for (const Entity* entity : scene.entities) {
+                                if (existsInTree(entity, candidate)) {
+                                        return true;
+                                }
+                        }
+                        return false;
+                };
+
+                if (!exists(baseName)) {
+                        return baseName;
+                }
+
+                int suffix = 1;
+                while (true) {
+                        const std::string candidate = baseName + " " + std::to_string(suffix);
+                        if (!exists(candidate)) {
+                                return candidate;
+                        }
+                        suffix++;
+                }
+        }
+
+        bool attachRenderableComponent(Entity* entity, PrimitiveType type) {
+                if (entity == nullptr) {
+                        return false;
+                }
+                if (entity->hasRenderable && entity->renderable.model != nullptr) {
+                        return true;
+                }
+
+                const std::string baseName = primitiveBaseName(type);
+                const char* defaultTexturePath = "res/images/default_white.png";
+                Model* model = nullptr;
+                if (type == PrimitiveType::Plane) {
+                        model = new Model(entity->name.c_str(), defaultTexturePath, glm::vec2(1.0f), entity->transform);
+                } else if (type == PrimitiveType::Cube) {
+                        model = new Model(entity->name.c_str(), defaultTexturePath, CubeGeometry(), entity->transform);
+                } else if (type == PrimitiveType::Sphere) {
+                        model = new Model(entity->name.c_str(), defaultTexturePath, SphereGeometry(), entity->transform);
+                }
+                if (model == nullptr) {
+                        return false;
+                }
+                entity->renderable.model = model;
+                entity->hasRenderable = true;
+                entity->showOriginMarker = false;
+                log.AddLog("[ECS] Added RenderableComponent (%s) to '%s'\n", baseName.c_str(), entity->name.c_str());
+                return true;
+        }
+
+        bool detachRenderableComponent(Entity* entity) {
+                if (entity == nullptr || !entity->hasRenderable) {
+                        return true;
+                }
+                if (entity->renderable.model != nullptr) {
+                        entity->renderable.model->destroy();
+                        delete entity->renderable.model;
+                        entity->renderable.model = nullptr;
+                }
+                entity->hasRenderable = false;
+                entity->showOriginMarker = true;
+                log.AddLog("[ECS] Removed RenderableComponent from '%s'\n", entity->name.c_str());
+                return true;
+        }
+
+        bool addPrimitiveToScene(Scene& scene, PrimitiveType type, Entity* parent = nullptr) {
+                const std::string baseName = primitiveBaseName(type);
+                const std::string entityName = makeUniqueModelName(scene, baseName);
+                Entity* entity = scene.createEmptyEntity(entityName, Transform(), parent);
+                if (entity == nullptr) {
+                        return false;
+                }
+                if (!attachRenderableComponent(entity, type)) {
+                        scene.removeEntity(entity);
+                        return false;
+                }
+                selectedEntity = entity;
+                sceneRootSelected = false;
+                log.AddLog("[SCENE] Added %s '%s'%s\n",
+                        baseName.c_str(),
+                        entityName.c_str(),
+                        parent ? " as child" : "");
+                return true;
+        }
+
+        bool addEmptyEntityToScene(Scene& scene, Entity* parent = nullptr) {
+                const std::string entityName = makeUniqueModelName(scene, "Entity");
+                Entity* entity = scene.createEmptyEntity(entityName, Transform(), parent);
+                if (entity == nullptr) {
+                        return false;
+                }
+                entity->material.tint = glm::vec4(1.0f, 0.95f, 0.2f, 1.0f);
+                selectedEntity = entity;
+                sceneRootSelected = false;
+                log.AddLog("[SCENE] Added Empty Entity '%s'%s\n", entityName.c_str(), parent ? " as child" : "");
+                return true;
+        }
+
+        bool deleteEntity(Scene& scene, Entity* entity) {
+                if (entity == nullptr) {
+                        return false;
+                }
+                std::function<bool(Entity*, Entity*)> containsEntity = [&](Entity* root, Entity* target) -> bool {
+                        if (root == nullptr || target == nullptr) {
+                                return false;
+                        }
+                        if (root == target) {
+                                return true;
+                        }
+                        for (Entity* child : root->children) {
+                                if (containsEntity(child, target)) {
+                                        return true;
+                                }
+                        }
+                        return false;
+                };
+                const std::string entityName = entity->name;
+                const bool deletingSelected = containsEntity(entity, selectedEntity);
+                if (scene.removeEntity(entity)) {
+                        if (deletingSelected) {
+                                selectedEntity = nullptr;
+                                sceneRootSelected = true;
+                        }
+                        log.AddLog("[SCENE] Deleted entity '%s'\n", entityName.c_str());
+                        return true;
+                }
+                return false;
+        }
         static std::string firstExistingPath(const std::string& rawPath, const std::filesystem::path& baseDir, bool wantDirectory) {
                 namespace fs = std::filesystem;
                 std::vector<fs::path> candidates;
@@ -642,6 +907,33 @@ private:
                         return fs::path("..");
                 }
                 return fs::path(".");
+        }
+
+        std::filesystem::path currentProjectPath() const {
+                return (detectProjectRootPath() / "projects" / currentProjectName).lexically_normal();
+        }
+
+        std::filesystem::path currentProjectScenesPath() const {
+                return (currentProjectPath() / "scenes").lexically_normal();
+        }
+
+        std::filesystem::path currentProjectAssetsPath() const {
+                return (currentProjectPath() / "assets").lexically_normal();
+        }
+
+        void updateCurrentProjectFromScenePath(const std::string& path) {
+                namespace fs = std::filesystem;
+                fs::path normalized = fs::path(path).lexically_normal();
+                std::vector<std::string> parts;
+                for (const auto& part : normalized) {
+                        parts.push_back(part.string());
+                }
+                for (size_t i = 0; i + 1 < parts.size(); ++i) {
+                        if (parts[i] == "projects" && !parts[i + 1].empty()) {
+                                currentProjectName = parts[i + 1];
+                                return;
+                        }
+                }
         }
 
         static std::string trimWhitespace(const std::string& value) {
@@ -704,17 +996,20 @@ private:
                 }
 
                 const fs::path projectRoot = detectProjectRootPath();
+                const fs::path projectScenesDir = currentProjectScenesPath();
                 if (!p.has_extension()) {
                         if (forWrite) {
-                                return (projectRoot / "res/scenes" / (trimmed + ".scene.json")).lexically_normal().generic_string();
+                                return (projectScenesDir / (trimmed + ".scene.json")).lexically_normal().generic_string();
                         }
 
                         const std::vector<fs::path> candidates = {
-                                (projectRoot / "res/scenes" / (trimmed + ".scene.json")).lexically_normal(),
-                                (projectRoot / "res/scenes" / (trimmed + ".json")).lexically_normal(),
+                                (projectScenesDir / (trimmed + ".scene.json")).lexically_normal(),
+                                (projectScenesDir / (trimmed + ".json")).lexically_normal(),
                                 (projectRoot / "projects" / trimmed / "scenes/default.scene.json").lexically_normal(),
                                 (projectRoot / "projects" / trimmed / (trimmed + ".scene.json")).lexically_normal(),
-                                (projectRoot / "projects" / trimmed / (trimmed + ".json")).lexically_normal()
+                                (projectRoot / "projects" / trimmed / (trimmed + ".json")).lexically_normal(),
+                                (projectRoot / "res/scenes" / (trimmed + ".scene.json")).lexically_normal(),
+                                (projectRoot / "res/scenes" / (trimmed + ".json")).lexically_normal()
                         };
                         for (const fs::path& candidate : candidates) {
                                 if (fs::exists(candidate) && fs::is_regular_file(candidate)) {
@@ -724,12 +1019,16 @@ private:
                         return candidates[0].generic_string();
                 }
 
-                const fs::path inSceneDir = (projectRoot / "res/scenes" / p).lexically_normal();
+                const fs::path inSceneDir = (projectScenesDir / p).lexically_normal();
                 if (forWrite) {
                         return inSceneDir.generic_string();
                 }
                 if (fs::exists(inSceneDir) && fs::is_regular_file(inSceneDir)) {
                         return inSceneDir.generic_string();
+                }
+                const fs::path sharedSceneDir = (projectRoot / "res/scenes" / p).lexically_normal();
+                if (fs::exists(sharedSceneDir) && fs::is_regular_file(sharedSceneDir)) {
+                        return sharedSceneDir.generic_string();
                 }
                 return trimmed;
         }
@@ -761,7 +1060,7 @@ private:
                 namespace fs = std::filesystem;
                 fs::path p(rawPath);
                 if (p.empty()) {
-                        p = fs::path("res/scenes/default.scene.json");
+                        p = fs::path("projects/default/scenes/default.scene.json");
                 }
                 if (p.extension().empty()) {
                         p += ".json";
@@ -773,7 +1072,10 @@ private:
                 if (rawNormalized.rfind("./", 0) == 0 || rawNormalized.rfind("../", 0) == 0) {
                         return rawNormalized;
                 }
-                return (detectProjectRootPath() / p).lexically_normal().generic_string();
+                if (rawNormalized.rfind("projects/", 0) == 0 || rawNormalized.rfind("res/", 0) == 0) {
+                        return (detectProjectRootPath() / p).lexically_normal().generic_string();
+                }
+                return (currentProjectScenesPath() / p).lexically_normal().generic_string();
         }
 
         bool loadSceneAtPath(Scene& scene, const std::string& rawPath) {
@@ -783,8 +1085,9 @@ private:
                 if (loadSceneJson(scene, resolvedPath, &error)) {
                         std::snprintf(sceneJsonPath, IM_ARRAYSIZE(sceneJsonPath), "%s", resolvedPath.c_str());
                         updateSceneDialogDirectoryFromPath(resolvedPath);
+                        updateCurrentProjectFromScenePath(resolvedPath);
                         sceneRootSelected = true;
-                        selectedModelIndex = -1;
+                        selectedEntity = nullptr;
                         log.AddLog("[SCENE] Loaded scene '%s'\n", resolvedPath.c_str());
                         return true;
                 }
@@ -799,6 +1102,7 @@ private:
                 if (saveSceneJson(scene, resolvedPath, &error)) {
                         std::snprintf(sceneJsonPath, IM_ARRAYSIZE(sceneJsonPath), "%s", resolvedPath.c_str());
                         updateSceneDialogDirectoryFromPath(resolvedPath);
+                        updateCurrentProjectFromScenePath(resolvedPath);
                         log.AddLog("[SCENE] Saved scene '%s'\n", resolvedPath.c_str());
                         return true;
                 }
@@ -845,8 +1149,20 @@ private:
                         log.AddLog("[INFO] Opened Scene Files tab.\n");
                         return;
                 }
+                if (command == "project") {
+                        if (tokens.size() < 2) {
+                                log.AddLog("[ERROR] project requires a project name.\n");
+                                return;
+                        }
+                        currentProjectName = tokens[1];
+                        const std::string projectScenePath = (currentProjectScenesPath() / "default.scene.json").lexically_normal().generic_string();
+                        std::snprintf(sceneJsonPath, IM_ARRAYSIZE(sceneJsonPath), "%s", projectScenePath.c_str());
+                        sceneDialogDirectory = currentProjectScenesPath().generic_string();
+                        log.AddLog("[INFO] Active project set to '%s'\n", currentProjectName.c_str());
+                        return;
+                }
                 if (command == "help") {
-                        log.AddLog("[INFO] Commands: save | saveas \"name-or-path\" | load \"scene-or-project\" | open\n");
+                        log.AddLog("[INFO] Commands: save | saveas \"name-or-path\" | load \"scene-or-project\" | project \"name\" | open\n");
                         return;
                 }
 
@@ -880,8 +1196,15 @@ private:
                 namespace fs = std::filesystem;
                 fs::path dir(sceneDialogDirectory);
                 if (!fs::exists(dir) || !fs::is_directory(dir)) {
-                        fs::path projectSceneDir = (detectProjectRootPath() / "res/scenes").lexically_normal();
-                        dir = (fs::exists(projectSceneDir) && fs::is_directory(projectSceneDir)) ? projectSceneDir : fs::path(".");
+                        fs::path projectSceneDir = currentProjectScenesPath();
+                        fs::path sharedSceneDir = (detectProjectRootPath() / "res/scenes").lexically_normal();
+                        if (fs::exists(projectSceneDir) && fs::is_directory(projectSceneDir)) {
+                                dir = projectSceneDir;
+                        } else if (fs::exists(sharedSceneDir) && fs::is_directory(sharedSceneDir)) {
+                                dir = sharedSceneDir;
+                        } else {
+                                dir = fs::path(".");
+                        }
                         sceneDialogDirectory = dir.generic_string();
                 }
 
@@ -1001,6 +1324,174 @@ private:
                 return true;
         }
 
+        static SimpleJson::Value materialToJson(const MaterialComponent& material) {
+                SimpleJson::Value materialObj = SimpleJson::Value::makeObject();
+                SimpleJson::Value tint = SimpleJson::Value::makeArray();
+                tint.arrayValue.push_back(SimpleJson::Value::makeNumber(material.tint.x));
+                tint.arrayValue.push_back(SimpleJson::Value::makeNumber(material.tint.y));
+                tint.arrayValue.push_back(SimpleJson::Value::makeNumber(material.tint.z));
+                tint.arrayValue.push_back(SimpleJson::Value::makeNumber(material.tint.w));
+                materialObj.objectValue["tint"] = tint;
+                materialObj.objectValue["metallic"] = SimpleJson::Value::makeNumber(material.metallic);
+                materialObj.objectValue["roughness"] = SimpleJson::Value::makeNumber(material.roughness);
+                materialObj.objectValue["wireframe"] = SimpleJson::Value::makeBool(material.wireframe);
+                return materialObj;
+        }
+
+        SimpleJson::Value entityToJson(const Entity* entity) const {
+                SimpleJson::Value entityObj = SimpleJson::Value::makeObject();
+                if (entity == nullptr) {
+                        return entityObj;
+                }
+
+                entityObj.objectValue["name"] = SimpleJson::Value::makeString(entity->name);
+                entityObj.objectValue["order"] = SimpleJson::Value::makeNumber(entity->order);
+                entityObj.objectValue["transform"] = transformToJson(entity->transform);
+                entityObj.objectValue["has_renderable"] = SimpleJson::Value::makeBool(entity->hasRenderable);
+                entityObj.objectValue["show_origin_marker"] = SimpleJson::Value::makeBool(entity->showOriginMarker);
+                entityObj.objectValue["material"] = materialToJson(entity->material);
+
+                if (entity->hasRenderable && entity->renderable.model != nullptr) {
+                        Model* model = entity->renderable.model;
+                        entityObj.objectValue["type"] = SimpleJson::Value::makeString(model->sourceType);
+                        if (model->sourceType == "obj") {
+                                entityObj.objectValue["obj_path"] = SimpleJson::Value::makeString(model->sourceObjPath);
+                                entityObj.objectValue["mtl_dir"] = SimpleJson::Value::makeString(model->sourceMtlDir);
+                        } else {
+                                entityObj.objectValue["texture"] = SimpleJson::Value::makeString(model->ownedTexturePath);
+                                SimpleJson::Value size = SimpleJson::Value::makeArray();
+                                size.arrayValue.push_back(SimpleJson::Value::makeNumber(model->sourcePlaneSize.x));
+                                size.arrayValue.push_back(SimpleJson::Value::makeNumber(model->sourcePlaneSize.y));
+                                entityObj.objectValue["size"] = size;
+                        }
+                } else {
+                        entityObj.objectValue["type"] = SimpleJson::Value::makeString("empty");
+                }
+
+                SimpleJson::Value children = SimpleJson::Value::makeArray();
+                for (Entity* child : entity->children) {
+                        children.arrayValue.push_back(entityToJson(child));
+                }
+                entityObj.objectValue["children"] = children;
+                return entityObj;
+        }
+
+        Entity* entityFromJson(const SimpleJson::Value& node,
+                const std::filesystem::path& sceneFileDir,
+                std::string* error) {
+                if (!node.isObject()) {
+                        return nullptr;
+                }
+
+                const SimpleJson::Value* modelName = node.get("name");
+                const SimpleJson::Value* modelType = node.get("type");
+                const SimpleJson::Value* modelOrder = node.get("order");
+                const SimpleJson::Value* modelTransform = node.get("transform");
+                if (modelName == nullptr || !modelName->isString() ||
+                        modelType == nullptr || !modelType->isString() ||
+                        modelOrder == nullptr || !modelOrder->isNumber() ||
+                        modelTransform == nullptr || !modelTransform->isObject()) {
+                        return nullptr;
+                }
+
+                Transform transform;
+                if (!jsonToVec3(modelTransform->get("position"), transform.position) ||
+                        !jsonToVec3(modelTransform->get("rotation"), transform.rotation) ||
+                        !jsonToVec3(modelTransform->get("scale"), transform.scale)) {
+                        return nullptr;
+                }
+
+                Entity* entity = new Entity();
+                entity->name = modelName->stringValue;
+                entity->order = static_cast<int>(modelOrder->numberValue);
+                entity->transform = transform;
+                entity->hasRenderable = (modelType->stringValue != "empty");
+                const SimpleJson::Value* hasRenderable = node.get("has_renderable");
+                if (hasRenderable != nullptr && hasRenderable->isBool()) {
+                        entity->hasRenderable = hasRenderable->boolValue;
+                }
+                const SimpleJson::Value* showMarker = node.get("show_origin_marker");
+                if (showMarker != nullptr && showMarker->isBool()) {
+                        entity->showOriginMarker = showMarker->boolValue;
+                } else {
+                        entity->showOriginMarker = !entity->hasRenderable;
+                }
+
+                const SimpleJson::Value* materialObj = node.get("material");
+                if (materialObj != nullptr && materialObj->isObject()) {
+                        jsonToVec4(materialObj->get("tint"), entity->material.tint);
+                        const SimpleJson::Value* metallic = materialObj->get("metallic");
+                        if (metallic != nullptr && metallic->isNumber()) {
+                                entity->material.metallic = static_cast<float>(metallic->numberValue);
+                        }
+                        const SimpleJson::Value* roughness = materialObj->get("roughness");
+                        if (roughness != nullptr && roughness->isNumber()) {
+                                entity->material.roughness = static_cast<float>(roughness->numberValue);
+                        }
+                        const SimpleJson::Value* wireframe = materialObj->get("wireframe");
+                        if (wireframe != nullptr && wireframe->isBool()) {
+                                entity->material.wireframe = wireframe->boolValue;
+                        }
+                }
+
+                Model* model = nullptr;
+                if (modelType->stringValue == "obj") {
+                        const SimpleJson::Value* objPath = node.get("obj_path");
+                        const SimpleJson::Value* mtlDir = node.get("mtl_dir");
+                        if (objPath == nullptr || !objPath->isString() || mtlDir == nullptr || !mtlDir->isString()) {
+                                delete entity;
+                                return nullptr;
+                        }
+                        std::string resolvedObjPath = firstExistingPath(objPath->stringValue, sceneFileDir, false);
+                        std::string resolvedMtlDir = firstExistingPath(mtlDir->stringValue, sceneFileDir, true);
+                        model = new Model(entity->name.c_str(), transform);
+                        if (!model->LoadOBJ(resolvedObjPath.c_str(), resolvedMtlDir.c_str())) {
+                                delete model;
+                                delete entity;
+                                return nullptr;
+                        }
+                } else if (modelType->stringValue == "plane") {
+                        const SimpleJson::Value* texture = node.get("texture");
+                        const SimpleJson::Value* size = node.get("size");
+                        glm::vec2 bounds;
+                        if (texture == nullptr || !texture->isString() || !jsonToVec2(size, bounds)) {
+                                delete entity;
+                                return nullptr;
+                        }
+                        std::string resolvedTexturePath = firstExistingPath(texture->stringValue, sceneFileDir, false);
+                        model = new Model(entity->name.c_str(), resolvedTexturePath.c_str(), bounds, transform);
+                } else if (modelType->stringValue == "empty") {
+                        model = nullptr;
+                } else {
+                        delete entity;
+                        return nullptr;
+                }
+
+                if (entity->hasRenderable && model == nullptr) {
+                        delete entity;
+                        return nullptr;
+                }
+                if (model != nullptr) {
+                        model->order = entity->order;
+                        model->transform = entity->transform;
+                        entity->renderable.model = model;
+                        entity->hasRenderable = true;
+                }
+
+                const SimpleJson::Value* childrenValue = node.get("children");
+                if (childrenValue != nullptr && childrenValue->isArray()) {
+                        for (const SimpleJson::Value& childNode : childrenValue->arrayValue) {
+                                Entity* child = entityFromJson(childNode, sceneFileDir, error);
+                                if (child != nullptr) {
+                                        child->parent = entity;
+                                        entity->children.push_back(child);
+                                }
+                        }
+                }
+
+                return entity;
+        }
+
         bool saveSceneJson(const Scene& scene, const std::string& path, std::string* error) {
                 namespace fs = std::filesystem;
                 fs::path outPath(path);
@@ -1023,32 +1514,8 @@ private:
                 sceneObj.objectValue["color"] = color;
 
                 SimpleJson::Value models = SimpleJson::Value::makeArray();
-                for (Model* model : scene.models) {
-                        if (model == nullptr) {
-                                continue;
-                        }
-                        if (model->sourceType != "obj" && model->sourceType != "plane") {
-                                continue;
-                        }
-
-                        SimpleJson::Value modelObj = SimpleJson::Value::makeObject();
-                        modelObj.objectValue["name"] = SimpleJson::Value::makeString(model->name ? model->name : "Model");
-                        modelObj.objectValue["type"] = SimpleJson::Value::makeString(model->sourceType);
-                        modelObj.objectValue["order"] = SimpleJson::Value::makeNumber(model->order);
-                        modelObj.objectValue["transform"] = transformToJson(model->transform);
-
-                        if (model->sourceType == "obj") {
-                                modelObj.objectValue["obj_path"] = SimpleJson::Value::makeString(model->sourceObjPath);
-                                modelObj.objectValue["mtl_dir"] = SimpleJson::Value::makeString(model->sourceMtlDir);
-                        } else {
-                                modelObj.objectValue["texture"] = SimpleJson::Value::makeString(model->ownedTexturePath);
-                                SimpleJson::Value size = SimpleJson::Value::makeArray();
-                                size.arrayValue.push_back(SimpleJson::Value::makeNumber(model->sourcePlaneSize.x));
-                                size.arrayValue.push_back(SimpleJson::Value::makeNumber(model->sourcePlaneSize.y));
-                                modelObj.objectValue["size"] = size;
-                        }
-
-                        models.arrayValue.push_back(modelObj);
+                for (Entity* entity : scene.entities) {
+                        models.arrayValue.push_back(entityToJson(entity));
                 }
 
                 sceneObj.objectValue["models"] = models;
@@ -1097,57 +1564,10 @@ private:
                 std::filesystem::path sceneFileDir = std::filesystem::path(path).parent_path();
 
                 for (const SimpleJson::Value& modelValue : modelsValue->arrayValue) {
-                        if (!modelValue.isObject()) {
-                                continue;
+                        Entity* entity = entityFromJson(modelValue, sceneFileDir, error);
+                        if (entity != nullptr) {
+                                scene.addEntity(entity);
                         }
-                        const SimpleJson::Value* modelName = modelValue.get("name");
-                        const SimpleJson::Value* modelType = modelValue.get("type");
-                        const SimpleJson::Value* modelOrder = modelValue.get("order");
-                        const SimpleJson::Value* modelTransform = modelValue.get("transform");
-                        if (modelName == nullptr || !modelName->isString() ||
-                                modelType == nullptr || !modelType->isString() ||
-                                modelOrder == nullptr || !modelOrder->isNumber() ||
-                                modelTransform == nullptr || !modelTransform->isObject()) {
-                                continue;
-                        }
-
-                        Transform transform;
-                        if (!jsonToVec3(modelTransform->get("position"), transform.position) ||
-                                !jsonToVec3(modelTransform->get("rotation"), transform.rotation) ||
-                                !jsonToVec3(modelTransform->get("scale"), transform.scale)) {
-                                continue;
-                        }
-
-                        Model* model = nullptr;
-                        if (modelType->stringValue == "obj") {
-                                const SimpleJson::Value* objPath = modelValue.get("obj_path");
-                                const SimpleJson::Value* mtlDir = modelValue.get("mtl_dir");
-                                if (objPath == nullptr || !objPath->isString() || mtlDir == nullptr || !mtlDir->isString()) {
-                                        continue;
-                                }
-                                std::string resolvedObjPath = firstExistingPath(objPath->stringValue, sceneFileDir, false);
-                                std::string resolvedMtlDir = firstExistingPath(mtlDir->stringValue, sceneFileDir, true);
-                                model = new Model(modelName->stringValue.c_str(), transform);
-                                if (!model->LoadOBJ(resolvedObjPath.c_str(), resolvedMtlDir.c_str())) {
-                                        delete model;
-                                        model = nullptr;
-                                        continue;
-                                }
-                        } else if (modelType->stringValue == "plane") {
-                                const SimpleJson::Value* texture = modelValue.get("texture");
-                                const SimpleJson::Value* size = modelValue.get("size");
-                                glm::vec2 bounds;
-                                if (texture == nullptr || !texture->isString() || !jsonToVec2(size, bounds)) {
-                                        continue;
-                                }
-                                std::string resolvedTexturePath = firstExistingPath(texture->stringValue, sceneFileDir, false);
-                                model = new Model(modelName->stringValue.c_str(), resolvedTexturePath.c_str(), bounds, transform);
-                        } else {
-                                continue;
-                        }
-
-                        model->order = static_cast<int>(modelOrder->numberValue);
-                        scene.add(model);
                 }
 
                 return true;

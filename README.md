@@ -26,6 +26,22 @@ The editor/runtime follows a lightweight ECS-style flow with JSON scene I/O.
 
 ![Nelson Architecture Diagram](docs/architecture.png)
 
+## Project Layout
+Project-specific content now lives under `projects/<project-name>/`:
+
+```
+projects/
+  default/
+    project.json
+    scenes/
+      default.scene.json
+    assets/
+      models/
+        sponza/
+```
+
+Shared fallback assets remain in `res/` (for common shaders/images and legacy scenes).
+
 ## Quick Start on Linux
 ```
 sudo apt install cmake build-essential libglew-dev libglfw3-dev libglm-dev libgl1-mesa-dev libxinerama-dev libxcursor-dev libxi-dev
@@ -42,5 +58,14 @@ Run from project root:
 
 Run with an explicit startup scene JSON:
 ```
-./Nelson res/scenes/default.scene.json
+./Nelson projects/default/scenes/default.scene.json
 ```
+
+---
+
+## Features
+
+- Load and display 3D models
+- Basic scene management (load/save)
+- Simple UI for editing scene properties
+- Real-time rendering with OpenGL

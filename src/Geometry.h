@@ -111,6 +111,61 @@ struct CubeGeometry : public Geometry {
 
                 this->indices = indic;
         }
+	};
+
+struct SphereGeometry : public Geometry {
+	SphereGeometry(float radius = 0.5f, unsigned int stacks = 16, unsigned int sectors = 32) {
+		const float pi = 3.14159265358979323846f;
+		if (stacks < 3) {
+			stacks = 3;
+		}
+		if (sectors < 3) {
+			sectors = 3;
+		}
+
+		vertices.reserve((stacks + 1) * (sectors + 1) * 5);
+		indices.reserve(stacks * sectors * 6);
+
+		for (unsigned int stack = 0; stack <= stacks; ++stack) {
+			const float v = static_cast<float>(stack) / static_cast<float>(stacks);
+			const float phi = pi * v;
+			const float sinPhi = std::sin(phi);
+			const float cosPhi = std::cos(phi);
+
+			for (unsigned int sector = 0; sector <= sectors; ++sector) {
+				const float u = static_cast<float>(sector) / static_cast<float>(sectors);
+				const float theta = 2.0f * pi * u;
+				const float sinTheta = std::sin(theta);
+				const float cosTheta = std::cos(theta);
+
+				const float x = radius * sinPhi * cosTheta;
+				const float y = radius * cosPhi;
+				const float z = radius * sinPhi * sinTheta;
+
+				vertices.push_back(x);
+				vertices.push_back(y);
+				vertices.push_back(z);
+				vertices.push_back(u);
+				vertices.push_back(1.0f - v);
+			}
+		}
+
+		const unsigned int rowSize = sectors + 1;
+		for (unsigned int stack = 0; stack < stacks; ++stack) {
+			for (unsigned int sector = 0; sector < sectors; ++sector) {
+				const unsigned int first = stack * rowSize + sector;
+				const unsigned int second = first + rowSize;
+
+				indices.push_back(first);
+				indices.push_back(second);
+				indices.push_back(first + 1);
+
+				indices.push_back(second);
+				indices.push_back(second + 1);
+				indices.push_back(first + 1);
+			}
+		}
+	}
 };
 
 #endif /* GEOMETRY_H */

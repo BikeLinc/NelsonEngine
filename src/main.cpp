@@ -40,6 +40,8 @@ public:
 		if (!startupScenePath.empty()) {
 			sceneCandidates.push_back(startupScenePath);
 		}
+		sceneCandidates.push_back("projects/default/scenes/default.scene.json");
+		sceneCandidates.push_back("../projects/default/scenes/default.scene.json");
 		sceneCandidates.push_back("res/scenes/default.scene.json");
 		sceneCandidates.push_back("../res/scenes/default.scene.json");
 
@@ -58,10 +60,10 @@ public:
 			}
 		}
 
-		if (loaded) {
-			sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Loaded JSON scene: " + loadedPath));
-			sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Entities: " + std::to_string(scene->models.size())));
-		} else {
+			if (loaded) {
+				sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Loaded JSON scene: " + loadedPath));
+				sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Entities: " + std::to_string(scene->entities.size())));
+			} else {
 			if (!lastError.empty()) {
 				sendMessage(Message({ CONSOLE_EVENT }, "[Scene] Failed to load startup scene: " + lastError));
 			} else {
@@ -179,67 +181,127 @@ private:
 			return false;
 		}
 
-		sceneRef.clear();
-		const SimpleJson::Value* nameValue = sceneObj->get("name");
-		sceneRef.name = (nameValue != nullptr && nameValue->isString()) ? nameValue->stringValue : "scene";
-		sceneRef.color = loadedColor;
+			sceneRef.clear();
+			const SimpleJson::Value* nameValue = sceneObj->get("name");
+			sceneRef.name = (nameValue != nullptr && nameValue->isString()) ? nameValue->stringValue : "scene";
+			sceneRef.color = loadedColor;
 
-		fs::path sceneFileDir = fs::path(path).parent_path();
-		for (const SimpleJson::Value& modelValue : modelsValue->arrayValue) {
-			if (!modelValue.isObject()) {
-				continue;
-			}
+			fs::path sceneFileDir = fs::path(path).parent_path();
+			std::function<Entity*(const SimpleJson::Value&, Entity*)> loadEntityNode =
+				[&](const SimpleJson::Value& modelValue, Entity* parent) -> Entity* {
+					if (!modelValue.isObject()) {
+						return nullptr;
+					}
+					const SimpleJson::Value* modelName = modelValue.get("name");
+					const SimpleJson::Value* modelType = modelValue.get("type");
+					const SimpleJson::Value* modelOrder = modelValue.get("order");
+					const SimpleJson::Value* modelTransform = modelValue.get("transform");
+					if (modelName == nullptr || !modelName->isString() ||
+						modelType == nullptr || !modelType->isString() ||
+						modelOrder == nullptr || !modelOrder->isNumber() ||
+						modelTransform == nullptr || !modelTransform->isObject()) {
+						return nullptr;
+					}
 
-			const SimpleJson::Value* modelName = modelValue.get("name");
-			const SimpleJson::Value* modelType = modelValue.get("type");
-			const SimpleJson::Value* modelOrder = modelValue.get("order");
-			const SimpleJson::Value* modelTransform = modelValue.get("transform");
-			if (modelName == nullptr || !modelName->isString() ||
-				modelType == nullptr || !modelType->isString() ||
-				modelOrder == nullptr || !modelOrder->isNumber() ||
-				modelTransform == nullptr || !modelTransform->isObject()) {
-				continue;
-			}
+					Transform transform;
+					if (!jsonToVec3(modelTransform->get("position"), transform.position) ||
+						!jsonToVec3(modelTransform->get("rotation"), transform.rotation) ||
+						!jsonToVec3(modelTransform->get("scale"), transform.scale)) {
+						return nullptr;
+					}
 
-			Transform transform;
-			if (!jsonToVec3(modelTransform->get("position"), transform.position) ||
-				!jsonToVec3(modelTransform->get("rotation"), transform.rotation) ||
-				!jsonToVec3(modelTransform->get("scale"), transform.scale)) {
-				continue;
-			}
+					Entity* entity = new Entity();
+					entity->name = modelName->stringValue;
+					entity->order = static_cast<int>(modelOrder->numberValue);
+					entity->transform = transform;
+					entity->hasRenderable = false;
+					entity->parent = parent;
 
-			Model* model = nullptr;
-			if (modelType->stringValue == "obj") {
-				const SimpleJson::Value* objPath = modelValue.get("obj_path");
-				const SimpleJson::Value* mtlDir = modelValue.get("mtl_dir");
-				if (objPath == nullptr || !objPath->isString() || mtlDir == nullptr || !mtlDir->isString()) {
-					continue;
+					const SimpleJson::Value* hasRenderable = modelValue.get("has_renderable");
+					if (hasRenderable != nullptr && hasRenderable->isBool()) {
+						entity->hasRenderable = hasRenderable->boolValue;
+					}
+					const SimpleJson::Value* showOriginMarker = modelValue.get("show_origin_marker");
+					if (showOriginMarker != nullptr && showOriginMarker->isBool()) {
+						entity->showOriginMarker = showOriginMarker->boolValue;
+					} else {
+						entity->showOriginMarker = !entity->hasRenderable;
+					}
+					const SimpleJson::Value* materialObj = modelValue.get("material");
+					if (materialObj != nullptr && materialObj->isObject()) {
+						jsonToVec4(materialObj->get("tint"), entity->material.tint);
+						const SimpleJson::Value* metallic = materialObj->get("metallic");
+						if (metallic != nullptr && metallic->isNumber()) {
+							entity->material.metallic = static_cast<float>(metallic->numberValue);
+						}
+						const SimpleJson::Value* roughness = materialObj->get("roughness");
+						if (roughness != nullptr && roughness->isNumber()) {
+							entity->material.roughness = static_cast<float>(roughness->numberValue);
+						}
+						const SimpleJson::Value* wireframe = materialObj->get("wireframe");
+						if (wireframe != nullptr && wireframe->isBool()) {
+							entity->material.wireframe = wireframe->boolValue;
+						}
+					}
+
+					Model* model = nullptr;
+					if (modelType->stringValue == "obj") {
+						const SimpleJson::Value* objPath = modelValue.get("obj_path");
+						const SimpleJson::Value* mtlDir = modelValue.get("mtl_dir");
+						if (objPath == nullptr || !objPath->isString() || mtlDir == nullptr || !mtlDir->isString()) {
+							delete entity;
+							return nullptr;
+						}
+						std::string resolvedObjPath = firstExistingPath(objPath->stringValue, sceneFileDir, false);
+						std::string resolvedMtlDir = firstExistingPath(mtlDir->stringValue, sceneFileDir, true);
+						model = new Model(modelName->stringValue.c_str(), transform);
+						if (!model->LoadOBJ(resolvedObjPath.c_str(), resolvedMtlDir.c_str())) {
+							delete model;
+							delete entity;
+							return nullptr;
+						}
+					} else if (modelType->stringValue == "plane") {
+						const SimpleJson::Value* texture = modelValue.get("texture");
+						const SimpleJson::Value* size = modelValue.get("size");
+						glm::vec2 bounds;
+						if (texture == nullptr || !texture->isString() || !jsonToVec2(size, bounds)) {
+							delete entity;
+							return nullptr;
+						}
+						const std::string resolvedTexture = firstExistingPath(texture->stringValue, sceneFileDir, false);
+						model = new Model(modelName->stringValue.c_str(), resolvedTexture.c_str(), bounds, transform);
+					} else if (modelType->stringValue == "empty") {
+						model = nullptr;
+					} else {
+						delete entity;
+						return nullptr;
+					}
+
+					if (model != nullptr) {
+						model->order = entity->order;
+						model->transform = entity->transform;
+						entity->renderable.model = model;
+						entity->hasRenderable = true;
+					}
+
+					const SimpleJson::Value* childrenValue = modelValue.get("children");
+					if (childrenValue != nullptr && childrenValue->isArray()) {
+						for (const SimpleJson::Value& childValue : childrenValue->arrayValue) {
+							Entity* child = loadEntityNode(childValue, entity);
+							if (child != nullptr) {
+								entity->children.push_back(child);
+							}
+						}
+					}
+					return entity;
+				};
+
+			for (const SimpleJson::Value& modelValue : modelsValue->arrayValue) {
+				Entity* rootEntity = loadEntityNode(modelValue, nullptr);
+				if (rootEntity != nullptr) {
+					sceneRef.addEntity(rootEntity);
 				}
-
-				std::string resolvedObjPath = firstExistingPath(objPath->stringValue, sceneFileDir, false);
-				std::string resolvedMtlDir = firstExistingPath(mtlDir->stringValue, sceneFileDir, true);
-				model = new Model(modelName->stringValue.c_str(), transform);
-				if (!model->LoadOBJ(resolvedObjPath.c_str(), resolvedMtlDir.c_str())) {
-					delete model;
-					model = nullptr;
-					continue;
-				}
-			} else if (modelType->stringValue == "plane") {
-				const SimpleJson::Value* texture = modelValue.get("texture");
-				const SimpleJson::Value* size = modelValue.get("size");
-				glm::vec2 bounds;
-				if (texture == nullptr || !texture->isString() || !jsonToVec2(size, bounds)) {
-					continue;
-				}
-				const std::string resolvedTexture = firstExistingPath(texture->stringValue, sceneFileDir, false);
-				model = new Model(modelName->stringValue.c_str(), resolvedTexture.c_str(), bounds, transform);
-			} else {
-				continue;
 			}
-
-			model->order = static_cast<int>(modelOrder->numberValue);
-			sceneRef.add(model);
-		}
 
 		return true;
 	}

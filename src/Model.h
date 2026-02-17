@@ -231,7 +231,7 @@ struct Model {
 		return true;
 	}
 
-	void draw(Transform offset) {
+	void draw(Transform offset, const glm::vec4& tint = glm::vec4(1.0f), bool wireframe = false) {
 		// Comprehensive safety checks
 		if (!shader) return;
 		if (transform.scale.x <= 0.0f || transform.scale.y <= 0.0f || transform.scale.z <= 0.0f) return;
@@ -273,8 +273,10 @@ struct Model {
 		shader->setMat4("transform", model_transform);
 		shader->setMat4("view", view);
 		shader->setMat4("projection", projection);
+		shader->setVec4("uTint", tint);
 
 		// render
+		glPolygonMode(GL_FRONT_AND_BACK, wireframe ? GL_LINE : GL_FILL);
 		for (const Submesh& submesh : submeshes) {
 			if (!submesh.mesh || submesh.mesh->geometry.indices.empty()) {
 				continue;
@@ -285,6 +287,7 @@ struct Model {
 			glBindVertexArray(submesh.mesh->VAO);
 			glDrawElements(GL_TRIANGLES, submesh.mesh->geometry.indices.size(), GL_UNSIGNED_INT, 0);
 		}
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 
 	void destroy() {
