@@ -33,16 +33,20 @@ void Nelson::Game::_dispose() {
 }
 
 void Nelson::Game::run() {
+	std::cout << "[Engine] Starting NelsonEngine..." << std::endl;
 	_init();
 	start();
 	if (scene != nullptr) {
+		std::cout << "[Engine] Running." << std::endl;
 		_loop();
 		dispose();
 		_dispose();
+		std::cout << "[Engine] Exited cleanly." << std::endl;
 	}
 	else {
 		bus.sendMessage(Message({ ENGINE_EVENT }, "ENGINE_NO_SCENE"));
 		bus.sendMessage(Message({ ENGINE_EVENT }, "ENGINE_EXIT"));
+		std::cout << "[Engine] Exit requested: no scene was created." << std::endl;
 	}
 }
 
@@ -101,5 +105,6 @@ void Nelson::Game::_loop() {
 		window->update();
 		bus.notify();
 	}
+	std::cout << "[Engine] Window close requested. Shutting down..." << std::endl;
 
 }

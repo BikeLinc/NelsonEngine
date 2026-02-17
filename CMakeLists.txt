@@ -10,7 +10,7 @@ cmake_minimum_required( VERSION 3.1 )
 
 project( Nelson )
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 
 find_package( OpenGL REQUIRED )
 
@@ -49,13 +49,18 @@ file(GLOB IMGUI_SRC
     "vendor/imgui/backends/imgui_impl_opengl3.cpp"
 )
 
+file(GLOB TINY_OBJ_LOADER
+    "src/tinyobjloader/tiny_obj_loader.h"
+    "src/tinyobjloader/tinyobjloader.cpp"
+)
+
 file(GLOB CORE_SRC
     "src/*.cpp"
     "src/*.h"
     "src/*.c"
 )
      
-add_executable( ${PROJECT_NAME} WIN32 ${GLEW_INC} ${CORE_SRC} ${SOIL2_SRC} ${IMGUI_SRC} ${SHADER_RES} ${IMAGE_RES})
+add_executable( ${PROJECT_NAME} WIN32 ${GLEW_INC} ${CORE_SRC} ${SOIL2_SRC} ${IMGUI_SRC} ${SHADER_RES} ${IMAGE_RES} ${TINY_OBJ_LOADER})
 target_link_libraries( ${PROJECT_NAME} ${OPENGL_LIBRARIES} glew glfw )
 if( MSVC )
     if(${CMAKE_VERSION} VERSION_LESS "3.1.0") 

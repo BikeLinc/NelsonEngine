@@ -1,3 +1,39 @@
-.vs
-.vscode/*
-out/*
+.vs/
+.vscode/
+
+# CMake generated files (in-source and out-of-source)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+CTestTestfile.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+build/
+
+# Generated binaries and libraries
+Nelson
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.so.*
+*.dylib
+*.a
+*.lib
+bin/
+lib/
+
+# Runtime/editor-generated files
+imgui.ini
+
+# Generated GLFW config artifacts
+vendor/glfw/src/glfw3.pc
+vendor/glfw/src/glfw3Config.cmake
+vendor/glfw/src/glfw3ConfigVersion.cmake
+vendor/glfw/src/glfw_config.h
+
+# TODO: Find a good demo scene besides sponza.
+models/

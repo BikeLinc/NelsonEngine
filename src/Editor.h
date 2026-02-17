@@ -137,7 +137,30 @@ public:
                 IMGUI_CHECKVERSION();
                 ImGui::CreateContext();
                 ImGuiIO& io = ImGui::GetIO(); (void)io;
-                io.Fonts->AddFontFromFileTTF("../vendor/imgui/Roboto-Medium.ttf", 16);
+                auto fileExists = [](const char* path) -> bool {
+                        std::ifstream f(path);
+                        return f.good();
+                };
+
+                const char* fontPaths[] = {
+                        "vendor/imgui/Roboto-Medium.ttf",
+                        "../vendor/imgui/Roboto-Medium.ttf"
+                };
+
+                bool loadedCustomFont = false;
+                for (const char* path : fontPaths) {
+                        if (fileExists(path)) {
+                                if (io.Fonts->AddFontFromFileTTF(path, 16.0f) != nullptr) {
+                                        loadedCustomFont = true;
+                                        break;
+                                }
+                        }
+                }
+
+                if (!loadedCustomFont) {
+                        io.Fonts->AddFontDefault();
+                        std::cout << "[Editor] Warning: Could not load Roboto-Medium.ttf; using default ImGui font." << std::endl;
+                }
                 ImGui::StyleColorsDark();
                 style();
                 ImGui_ImplGlfw_InitForOpenGL(window, true);
@@ -223,9 +246,19 @@ public:
                                 if (ImGui::CollapsingHeader(characterBuffer)) {
                                         ImGui::Text("Transform");
                                         ImGui::DragInt("Order", &model.order);
-                                        ImGui::DragFloat3("Position", &model.transform.position.x, 0.01f, -10000.0f, 10000.0f);
+                                        ImGui::DragFloat3("Position", &model.transform.position.x, 0.1f, -1000.0f, 1000.0f);
                                         ImGui::DragFloat3("Rotation", &model.transform.rotation.x, 0.1f, -180.0f, 180.0f);
-                                        ImGui::DragFloat3("Scale", &model.transform.scale.x, 0.01f, -10.0f, 10.0f);
+                                        ImGui::DragFloat3("Scale", &model.transform.scale.x, 0.001f, 0.001f, 100.0f);
+                                                                                // Comprehensive safety checks for all zeros and NaN
+                                        if (model.transform.scale.x <= 0.0f) model.transform.scale.x = 0.001f;
+                                        if (model.transform.scale.y <= 0.0f) model.transform.scale.y = 0.001f;
+                                        if (model.transform.scale.z <= 0.0f) model.transform.scale.z = 0.001f;
+                                        if (std::isnan(model.transform.position.x)) model.transform.position.x = 0.0f;
+                                        if (std::isnan(model.transform.position.y)) model.transform.position.y = 0.0f;
+                                        if (std::isnan(model.transform.position.z)) model.transform.position.z = 0.0f;
+                                        if (std::isnan(model.transform.rotation.x)) model.transform.rotation.x = 0.0f;
+                                        if (std::isnan(model.transform.rotation.y)) model.transform.rotation.y = 0.0f;
+                                        if (std::isnan(model.transform.rotation.z)) model.transform.rotation.z = 0.0f;
                                 }
                                 ImGui::PopID();
                         }
@@ -239,14 +272,42 @@ public:
                                 ImGui::InputText("Name", modelName, IM_ARRAYSIZE(modelName));
                                 ImGui::InputText("Texture", texPath, IM_ARRAYSIZE(texPath));
                                 ImGui::DragFloat2("Size", &bounds.x, 0.01f, -1000.0f, 1000.0f);
-                                ImGui::DragFloat3("Position", &transform.position.x, 0.01f, -10000.0f, 10000.0f);
+                                ImGui::DragFloat3("Position", &transform.position.x, 0.1f, -1000.0f, 1000.0f);
                                 ImGui::DragFloat3("Rotation", &transform.rotation.x, 0.1f, -180.0f, 180.0f);
-                                ImGui::DragFloat3("Scale", &transform.scale.x, 0.01f, -10.0f, 10.0f);
+                                ImGui::DragFloat3("Scale", &transform.scale.x, 0.001f, 0.001f, 100.0f);
+                                // Comprehensive safety checks for all zeros and NaN
+                                if (bounds.x <= 0.0f) bounds.x = 0.1f;
+                                if (bounds.y <= 0.0f) bounds.y = 0.1f;
+                                if (transform.scale.x <= 0.0f) transform.scale.x = 0.001f;
+                                if (transform.scale.y <= 0.0f) transform.scale.y = 0.001f;
+                                if (transform.scale.z <= 0.0f) transform.scale.z = 0.001f;
+                                if (std::isnan(transform.position.x)) transform.position.x = 0.0f;
+                                if (std::isnan(transform.position.y)) transform.position.y = 0.0f;
+                                if (std::isnan(transform.position.z)) transform.position.z = 0.0f;
+                                if (std::isnan(transform.rotation.x)) transform.rotation.x = 0.0f;
+                                if (std::isnan(transform.rotation.y)) transform.rotation.y = 0.0f;
+                                if (std::isnan(transform.rotation.z)) transform.rotation.z = 0.0f;
+                                if (std::isnan(bounds.x)) bounds.x = 1.0f;
+                                if (std::isnan(bounds.y)) bounds.y = 1.0f;
                                 if (ImGui::Button("Create"))
                                 {
                                         scene.add(new Model(modelName, texPath, PlaneGeometry(bounds), transform));
-                                        log.AddLog("[SCENE] Add Model \'%s\'\n", modelName);
-
+                                        log.AddLog("[SCENE] Add Model '%s'\n", modelName);
+                                }
+                                
+                                static char objPath[256] = "res/models/conference.obj";
+                                static char mtlDir[256] = "res/models/";
+                                ImGui::InputText("OBJ Path", objPath, IM_ARRAYSIZE(objPath));
+                                ImGui::InputText("MTL Dir", mtlDir, IM_ARRAYSIZE(mtlDir));
+                                if (ImGui::Button("Load Model")) {
+                                        Model* mdl = new Model(modelName, transform);
+                                        if (mdl->LoadOBJ(objPath, mtlDir)) {
+                                                scene.add(mdl);
+                                                log.AddLog("[SCENE] Loaded OBJ '%s'\n", objPath);
+                                        } else {
+                                                delete mdl;
+                                                log.AddLog("[ERROR] Failed to load OBJ '%s'\n", objPath);
+                                        }
                                 }
                         }
                         ImGui::Separator();

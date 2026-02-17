@@ -12,6 +12,7 @@
 //---------------------------------------------------------------------------//
 
 #include "Window.h"
+#include <thread>
 
 void Window::init() {
         this->monitor = nullptr;
@@ -26,13 +27,33 @@ void Window::init() {
 #ifdef __APPLE__
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
         createMonitor();
         createMode();
-        createWindow(true);
+        createWindow(false);
         if (GLEW_OK != glewInit()) {
                 glfwTerminate();
         }     
         glfwSwapInterval(0);
+
+        const char* monitorName = monitor ? glfwGetMonitorName(monitor) : "Unknown";
+        const char* gpuVendor = reinterpret_cast<const char*>(glGetString(GL_VENDOR));
+        const char* gpuRenderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
+        const char* glVersion = reinterpret_cast<const char*>(glGetString(GL_VERSION));
+        const char* glslVersion = reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION));
+        int windowWidth = 0;
+        int windowHeight = 0;
+        glfwGetWindowSize(window, &windowWidth, &windowHeight);
+
+        std::cout << "[Hardware] Monitor: " << (monitorName ? monitorName : "Unknown")
+                  << " (" << mode->width << "x" << mode->height << " @ " << mode->refreshRate << "Hz)" << std::endl;
+        std::cout << "[Hardware] Window: " << windowWidth << "x" << windowHeight << std::endl;
+        std::cout << "[Hardware] GPU: " << (gpuVendor ? gpuVendor : "Unknown")
+                  << " | " << (gpuRenderer ? gpuRenderer : "Unknown") << std::endl;
+        std::cout << "[Hardware] OpenGL: " << (glVersion ? glVersion : "Unknown")
+                  << " | GLSL: " << (glslVersion ? glslVersion : "Unknown") << std::endl;
+        std::cout << "[Hardware] CPU threads: " << std::thread::hardware_concurrency() << std::endl;
 }
 
 bool Window::isOpen() {
@@ -72,6 +93,9 @@ void Window::onNotify(Message message) {
         else if (event == "ENGINE_EXIT") {
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
         }
+        else if (event.rfind("KEY_", 0) == 0) {
+                // Ignore unhandled key events to avoid console spam.
+        }
         else {
                 postMessage(Message({ CONSOLE_EVENT }, "Message \'" + event + "\' is unhandled by Window"));
         }
@@ -95,7 +119,9 @@ void Window::createWindow(bool fullscreen) {
         if(fullscreen) {
                 window = glfwCreateWindow(mode->width, mode->height, "Nelson", monitor, NULL);
         } else if(!fullscreen) {
-                window = glfwCreateWindow(mode->width, mode->height, "Nelson", NULL, NULL);
+                const int windowWidth = std::max(1280, mode->width * 3 / 4);
+                const int windowHeight = std::max(720, mode->height * 3 / 4);
+                window = glfwCreateWindow(windowWidth, windowHeight, "Nelson", NULL, NULL);
         }
         if (window == NULL)
         {
@@ -109,29 +135,35 @@ void Window::createWindow(bool fullscreen) {
         glfwSetScrollCallback(window, &Window::scroll_callback);
         int w, h;
         glfwGetFramebufferSize(window, &w, &h);
-        glViewport(0, (h - w) / 2, w, w);
+        glViewport(0, 0, w, h);
         glfwSetWindowUserPointer(window, reinterpret_cast<void*>(this));
         // tell GLFW to capture our mouse
         //glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 void Window::framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-        glViewport(0, (height - width) / 2, width, width);
+        glViewport(0, 0, width, height);
 }
 
 void Window::key_callback(GLFWwindow* window, int key, int scancode, int action, int mode) {
         Window* handler = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+        if (action != GLFW_PRESS) {
+                return;
+        }
 
         if (key == GLFW_KEY_ESCAPE) {
-                handler->postMessage(Message({ CONSOLE_EVENT, INPUT_EVENT }, "KEY_ESCAPE"));
+                handler->postMessage(Message({ INPUT_EVENT }, "KEY_ESCAPE"));
         }
         else if (key == GLFW_KEY_SPACE) {
-                handler->postMessage(Message({ CONSOLE_EVENT, INPUT_EVENT }, "KEY_SPACE"));
+                handler->postMessage(Message({ INPUT_EVENT }, "KEY_SPACE"));
         }
         else {
-                std::string keyname = glfwGetKeyName(key, scancode);
-                std::transform(keyname.begin(), keyname.end(), keyname.begin(), ::toupper);
-                handler->postMessage(Message({ CONSOLE_EVENT, INPUT_EVENT }, "KEY_" + keyname));
+                const char* keynameRaw = glfwGetKeyName(key, scancode);
+                if (keynameRaw != nullptr) {
+                        std::string keyname = keynameRaw;
+                        std::transform(keyname.begin(), keyname.end(), keyname.begin(), ::toupper);
+                        handler->postMessage(Message({ INPUT_EVENT }, "KEY_" + keyname));
+                }
         }
 
 

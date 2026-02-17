@@ -48,7 +48,6 @@ public:
 			for (int i = 0; i < scene->models.size(); i++) {
 				if (scene->models.at(i)->order == orderIndex) {
 					scene->models.at(i)->draw(scene->offset);
-					glClear(GL_DEPTH_BUFFER_BIT); // Must Clear Depth Buffer Every Time So Order MAtters
 				}
 			}
 			orderIndex++;
