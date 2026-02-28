@@ -286,6 +286,7 @@ public:
                                         scene.clear();
                                         scene.name = "scene";
                                         scene.color = glm::vec4(0.25f, 0.25f, 0.35f, 1.0f);
+                                        scene.lighting = SceneLightingSettings();
                                         sceneRootSelected = true;
                                         selectedEntity = nullptr;
                                         log.AddLog("[SCENE] Created new scene.\n");
@@ -485,6 +486,24 @@ public:
                                         } else if (ImGui::MenuItem("Remove Renderable Component")) {
                                                 detachRenderableComponent(entity);
                                         }
+                                        if (!entity->hasLight) {
+                                                if (ImGui::MenuItem("Add Light Component")) {
+                                                        entity->hasLight = true;
+                                                        entity->light = LightComponent();
+                                                        entity->showOriginMarker = true;
+                                                }
+                                        } else if (ImGui::MenuItem("Remove Light Component")) {
+                                                entity->hasLight = false;
+                                        }
+                                        if (!entity->hasCamera) {
+                                                if (ImGui::MenuItem("Add Camera Component")) {
+                                                        entity->hasCamera = true;
+                                                        entity->camera = CameraComponent();
+                                                        entity->showOriginMarker = true;
+                                                }
+                                        } else if (ImGui::MenuItem("Remove Camera Component")) {
+                                                entity->hasCamera = false;
+                                        }
                                         if (ImGui::MenuItem("Delete Entity")) {
                                                 Entity* toDelete = entity;
                                                 if (scene.removeEntity(toDelete)) {
@@ -613,8 +632,38 @@ public:
                                 ImGui::Text("Viewport");
                                 ImGui::ColorEdit4("Clear Color", &scene.color.x);
                                 ImGui::Separator();
+                                ImGui::Text("Lighting");
+                                ImGui::Checkbox("Full Bright Override", &scene.lighting.fullBrightOverride);
+                                ImGui::ColorEdit3("Ambient Color", &scene.lighting.ambientColor.x);
+                                ImGui::SliderFloat("Ambient Intensity", &scene.lighting.ambientIntensity, 0.0f, 2.0f);
+                                SceneRay centerRay;
+                                centerRay.origin = DefaultCameraPosition();
+                                centerRay.direction = glm::normalize(DefaultCameraTarget() - DefaultCameraPosition());
+                                if (ImGui::Button("Raycast From Camera")) {
+                                        SceneCamera activeCamera;
+                                        scene.getActiveCamera(activeCamera);
+                                        RaycastHit hit;
+                                        centerRay.origin = activeCamera.worldPosition;
+                                        centerRay.direction = activeCamera.forward;
+                                        if (scene.raycast(centerRay, hit) && hit.entity != nullptr) {
+                                                selectedEntity = hit.entity;
+                                                sceneRootSelected = false;
+                                                log.AddLog("[RAYCAST] Hit '%s' at distance %.3f\n", hit.entity->name.c_str(), hit.distance);
+                                        } else {
+                                                log.AddLog("[RAYCAST] No hit.\n");
+                                        }
+                                }
+                                ImGui::Separator();
                                 ImGui::Text("Entity Count: %d", static_cast<int>(scene.entities.size()));
                                 ImGui::Text("Renderable: %d", scene.renderableCount());
+                                ImGui::Text("Lights: %d", scene.lightCount());
+                                ImGui::Text("Cameras: %d", scene.cameraCount());
+                                SceneCamera activeCamera;
+                                if (scene.getActiveCamera(activeCamera) && activeCamera.entity != nullptr) {
+                                        ImGui::Text("Active Camera: %s", activeCamera.entity->name.c_str());
+                                } else {
+                                        ImGui::Text("Active Camera: <default>");
+                                }
                         } else if (selectedEntity != nullptr) {
                                 Entity* entity = selectedEntity;
                                 ImGui::Text("%s", entity->name.c_str());
@@ -640,6 +689,30 @@ public:
                                 } else {
                                         ImGui::Checkbox("Show Origin Marker", &entity->showOriginMarker);
                                         ImGui::ColorEdit4("Marker Color", &entity->material.tint.x);
+                                }
+                                ImGui::Separator();
+                                ImGui::Checkbox("Light", &entity->hasLight);
+                                if (entity->hasLight) {
+                                        int lightType = static_cast<int>(entity->light.type);
+                                        ImGui::RadioButton("Directional", &lightType, static_cast<int>(LightType::Directional));
+                                        ImGui::SameLine();
+                                        ImGui::RadioButton("Point", &lightType, static_cast<int>(LightType::Point));
+                                        entity->light.type = static_cast<LightType>(lightType);
+                                        ImGui::Checkbox("Light Enabled", &entity->light.enabled);
+                                        ImGui::ColorEdit3("Light Color", &entity->light.color.x);
+                                        ImGui::SliderFloat("Light Intensity", &entity->light.intensity, 0.0f, 24.0f);
+                                        ImGui::SliderFloat("Light Range", &entity->light.range, 0.1f, 200.0f);
+                                }
+                                ImGui::Separator();
+                                ImGui::Checkbox("Camera", &entity->hasCamera);
+                                if (entity->hasCamera) {
+                                        ImGui::Checkbox("Camera Enabled", &entity->camera.enabled);
+                                        ImGui::Checkbox("Primary Camera", &entity->camera.primary);
+                                        ImGui::SliderFloat("FOV Y", &entity->camera.fovYDegrees, 5.0f, 175.0f);
+                                        ImGui::DragFloat("Near Clip", &entity->camera.nearClip, 0.001f, 0.001f, 10.0f, "%.4f");
+                                        ImGui::DragFloat("Far Clip", &entity->camera.farClip, 0.5f, 1.0f, 10000.0f, "%.2f");
+                                        entity->camera.nearClip = std::max(0.001f, entity->camera.nearClip);
+                                        entity->camera.farClip = std::max(entity->camera.nearClip + 0.001f, entity->camera.farClip);
                                 }
                         } else {
                                 ImGui::Text("Select an entity in Hierarchy.");
@@ -681,6 +754,10 @@ public:
                         ImGui::Text("| FPS: %.1f", ImGui::GetIO().Framerate);
                         ImGui::SameLine();
                         ImGui::Text("| Entities: %d", static_cast<int>(scene.entities.size()));
+                        ImGui::SameLine();
+                        ImGui::Text("| Lights: %d", scene.lightCount());
+                        ImGui::SameLine();
+                        ImGui::Text("| Cameras: %d", scene.cameraCount());
                         ImGui::SameLine();
                         if (sceneRootSelected) {
                                 ImGui::Text("| Selected: Scene");
@@ -777,10 +854,13 @@ private:
                 Model* model = nullptr;
                 if (type == PrimitiveType::Plane) {
                         model = new Model(entity->name.c_str(), defaultTexturePath, glm::vec2(1.0f), entity->transform);
+                        model->sourceType = "plane";
                 } else if (type == PrimitiveType::Cube) {
                         model = new Model(entity->name.c_str(), defaultTexturePath, CubeGeometry(), entity->transform);
+                        model->sourceType = "cube";
                 } else if (type == PrimitiveType::Sphere) {
                         model = new Model(entity->name.c_str(), defaultTexturePath, SphereGeometry(), entity->transform);
+                        model->sourceType = "sphere";
                 }
                 if (model == nullptr) {
                         return false;
@@ -1338,6 +1418,66 @@ private:
                 return materialObj;
         }
 
+        static const char* lightTypeToString(LightType type) {
+                switch (type) {
+                case LightType::Directional:
+                        return "directional";
+                case LightType::Point:
+                default:
+                        return "point";
+                }
+        }
+
+        static LightType lightTypeFromString(const std::string& value) {
+                if (value == "directional") {
+                        return LightType::Directional;
+                }
+                return LightType::Point;
+        }
+
+        static std::string normalizeModelType(const std::string& sourceType) {
+                if (sourceType == "obj" || sourceType == "plane" || sourceType == "cube" || sourceType == "sphere") {
+                        return sourceType;
+                }
+                return "plane";
+        }
+
+        static SimpleJson::Value lightToJson(const LightComponent& light) {
+                SimpleJson::Value lightObj = SimpleJson::Value::makeObject();
+                lightObj.objectValue["enabled"] = SimpleJson::Value::makeBool(light.enabled);
+                lightObj.objectValue["type"] = SimpleJson::Value::makeString(lightTypeToString(light.type));
+                SimpleJson::Value color = SimpleJson::Value::makeArray();
+                color.arrayValue.push_back(SimpleJson::Value::makeNumber(light.color.x));
+                color.arrayValue.push_back(SimpleJson::Value::makeNumber(light.color.y));
+                color.arrayValue.push_back(SimpleJson::Value::makeNumber(light.color.z));
+                lightObj.objectValue["color"] = color;
+                lightObj.objectValue["intensity"] = SimpleJson::Value::makeNumber(light.intensity);
+                lightObj.objectValue["range"] = SimpleJson::Value::makeNumber(light.range);
+                return lightObj;
+        }
+
+        static SimpleJson::Value sceneLightingToJson(const SceneLightingSettings& lighting) {
+                SimpleJson::Value lightingObj = SimpleJson::Value::makeObject();
+                lightingObj.objectValue["full_bright_override"] = SimpleJson::Value::makeBool(lighting.fullBrightOverride);
+                SimpleJson::Value ambient = SimpleJson::Value::makeArray();
+                ambient.arrayValue.push_back(SimpleJson::Value::makeNumber(lighting.ambientColor.x));
+                ambient.arrayValue.push_back(SimpleJson::Value::makeNumber(lighting.ambientColor.y));
+                ambient.arrayValue.push_back(SimpleJson::Value::makeNumber(lighting.ambientColor.z));
+                lightingObj.objectValue["ambient_color"] = ambient;
+                lightingObj.objectValue["ambient_intensity"] = SimpleJson::Value::makeNumber(lighting.ambientIntensity);
+                return lightingObj;
+        }
+
+        static SimpleJson::Value cameraToJson(const CameraComponent& camera) {
+                SimpleJson::Value cameraObj = SimpleJson::Value::makeObject();
+                cameraObj.objectValue["enabled"] = SimpleJson::Value::makeBool(camera.enabled);
+                cameraObj.objectValue["primary"] = SimpleJson::Value::makeBool(camera.primary);
+                cameraObj.objectValue["fov_y"] = SimpleJson::Value::makeNumber(camera.fovYDegrees);
+                cameraObj.objectValue["near_clip"] = SimpleJson::Value::makeNumber(camera.nearClip);
+                cameraObj.objectValue["far_clip"] = SimpleJson::Value::makeNumber(camera.farClip);
+                return cameraObj;
+        }
+
         SimpleJson::Value entityToJson(const Entity* entity) const {
                 SimpleJson::Value entityObj = SimpleJson::Value::makeObject();
                 if (entity == nullptr) {
@@ -1350,19 +1490,30 @@ private:
                 entityObj.objectValue["has_renderable"] = SimpleJson::Value::makeBool(entity->hasRenderable);
                 entityObj.objectValue["show_origin_marker"] = SimpleJson::Value::makeBool(entity->showOriginMarker);
                 entityObj.objectValue["material"] = materialToJson(entity->material);
+                entityObj.objectValue["has_light"] = SimpleJson::Value::makeBool(entity->hasLight);
+                if (entity->hasLight) {
+                        entityObj.objectValue["light"] = lightToJson(entity->light);
+                }
+                entityObj.objectValue["has_camera"] = SimpleJson::Value::makeBool(entity->hasCamera);
+                if (entity->hasCamera) {
+                        entityObj.objectValue["camera"] = cameraToJson(entity->camera);
+                }
 
                 if (entity->hasRenderable && entity->renderable.model != nullptr) {
                         Model* model = entity->renderable.model;
-                        entityObj.objectValue["type"] = SimpleJson::Value::makeString(model->sourceType);
+                        const std::string modelType = normalizeModelType(model->sourceType);
+                        entityObj.objectValue["type"] = SimpleJson::Value::makeString(modelType);
                         if (model->sourceType == "obj") {
                                 entityObj.objectValue["obj_path"] = SimpleJson::Value::makeString(model->sourceObjPath);
                                 entityObj.objectValue["mtl_dir"] = SimpleJson::Value::makeString(model->sourceMtlDir);
-                        } else {
+                        } else if (modelType == "plane") {
                                 entityObj.objectValue["texture"] = SimpleJson::Value::makeString(model->ownedTexturePath);
                                 SimpleJson::Value size = SimpleJson::Value::makeArray();
                                 size.arrayValue.push_back(SimpleJson::Value::makeNumber(model->sourcePlaneSize.x));
                                 size.arrayValue.push_back(SimpleJson::Value::makeNumber(model->sourcePlaneSize.y));
                                 entityObj.objectValue["size"] = size;
+                        } else {
+                                entityObj.objectValue["texture"] = SimpleJson::Value::makeString(model->ownedTexturePath);
                         }
                 } else {
                         entityObj.objectValue["type"] = SimpleJson::Value::makeString("empty");
@@ -1433,6 +1584,61 @@ private:
                                 entity->material.wireframe = wireframe->boolValue;
                         }
                 }
+                const SimpleJson::Value* hasLight = node.get("has_light");
+                if (hasLight != nullptr && hasLight->isBool()) {
+                        entity->hasLight = hasLight->boolValue;
+                }
+                const SimpleJson::Value* lightObj = node.get("light");
+                if (lightObj != nullptr && lightObj->isObject()) {
+                        entity->hasLight = true;
+                        const SimpleJson::Value* enabled = lightObj->get("enabled");
+                        if (enabled != nullptr && enabled->isBool()) {
+                                entity->light.enabled = enabled->boolValue;
+                        }
+                        const SimpleJson::Value* type = lightObj->get("type");
+                        if (type != nullptr && type->isString()) {
+                                entity->light.type = lightTypeFromString(type->stringValue);
+                        }
+                        jsonToVec3(lightObj->get("color"), entity->light.color);
+                        const SimpleJson::Value* intensity = lightObj->get("intensity");
+                        if (intensity != nullptr && intensity->isNumber()) {
+                                entity->light.intensity = static_cast<float>(intensity->numberValue);
+                        }
+                        const SimpleJson::Value* range = lightObj->get("range");
+                        if (range != nullptr && range->isNumber()) {
+                                entity->light.range = static_cast<float>(range->numberValue);
+                        }
+                }
+                const SimpleJson::Value* hasCamera = node.get("has_camera");
+                if (hasCamera != nullptr && hasCamera->isBool()) {
+                        entity->hasCamera = hasCamera->boolValue;
+                }
+                const SimpleJson::Value* cameraObj = node.get("camera");
+                if (cameraObj != nullptr && cameraObj->isObject()) {
+                        entity->hasCamera = true;
+                        const SimpleJson::Value* enabled = cameraObj->get("enabled");
+                        if (enabled != nullptr && enabled->isBool()) {
+                                entity->camera.enabled = enabled->boolValue;
+                        }
+                        const SimpleJson::Value* primary = cameraObj->get("primary");
+                        if (primary != nullptr && primary->isBool()) {
+                                entity->camera.primary = primary->boolValue;
+                        }
+                        const SimpleJson::Value* fovY = cameraObj->get("fov_y");
+                        if (fovY != nullptr && fovY->isNumber()) {
+                                entity->camera.fovYDegrees = static_cast<float>(fovY->numberValue);
+                        }
+                        const SimpleJson::Value* nearClip = cameraObj->get("near_clip");
+                        if (nearClip != nullptr && nearClip->isNumber()) {
+                                entity->camera.nearClip = static_cast<float>(nearClip->numberValue);
+                        }
+                        const SimpleJson::Value* farClip = cameraObj->get("far_clip");
+                        if (farClip != nullptr && farClip->isNumber()) {
+                                entity->camera.farClip = static_cast<float>(farClip->numberValue);
+                        }
+                        entity->camera.nearClip = std::max(0.001f, entity->camera.nearClip);
+                        entity->camera.farClip = std::max(entity->camera.nearClip + 0.001f, entity->camera.farClip);
+                }
 
                 Model* model = nullptr;
                 if (modelType->stringValue == "obj") {
@@ -1460,6 +1666,23 @@ private:
                         }
                         std::string resolvedTexturePath = firstExistingPath(texture->stringValue, sceneFileDir, false);
                         model = new Model(entity->name.c_str(), resolvedTexturePath.c_str(), bounds, transform);
+                        model->sourceType = "plane";
+                } else if (modelType->stringValue == "cube") {
+                        const SimpleJson::Value* texture = node.get("texture");
+                        std::string texturePath = "res/images/default_white.png";
+                        if (texture != nullptr && texture->isString()) {
+                                texturePath = firstExistingPath(texture->stringValue, sceneFileDir, false);
+                        }
+                        model = new Model(entity->name.c_str(), texturePath.c_str(), CubeGeometry(), transform);
+                        model->sourceType = "cube";
+                } else if (modelType->stringValue == "sphere") {
+                        const SimpleJson::Value* texture = node.get("texture");
+                        std::string texturePath = "res/images/default_white.png";
+                        if (texture != nullptr && texture->isString()) {
+                                texturePath = firstExistingPath(texture->stringValue, sceneFileDir, false);
+                        }
+                        model = new Model(entity->name.c_str(), texturePath.c_str(), SphereGeometry(), transform);
+                        model->sourceType = "sphere";
                 } else if (modelType->stringValue == "empty") {
                         model = nullptr;
                 } else {
@@ -1512,6 +1735,7 @@ private:
                 color.arrayValue.push_back(SimpleJson::Value::makeNumber(scene.color.z));
                 color.arrayValue.push_back(SimpleJson::Value::makeNumber(scene.color.w));
                 sceneObj.objectValue["color"] = color;
+                sceneObj.objectValue["lighting"] = sceneLightingToJson(scene.lighting);
 
                 SimpleJson::Value models = SimpleJson::Value::makeArray();
                 for (Entity* entity : scene.entities) {
@@ -1561,6 +1785,19 @@ private:
                         scene.name = "scene";
                 }
                 scene.color = loadedColor;
+                const SimpleJson::Value* lightingObj = sceneObj->get("lighting");
+                scene.lighting = SceneLightingSettings();
+                if (lightingObj != nullptr && lightingObj->isObject()) {
+                        const SimpleJson::Value* fullBright = lightingObj->get("full_bright_override");
+                        if (fullBright != nullptr && fullBright->isBool()) {
+                                scene.lighting.fullBrightOverride = fullBright->boolValue;
+                        }
+                        jsonToVec3(lightingObj->get("ambient_color"), scene.lighting.ambientColor);
+                        const SimpleJson::Value* ambientIntensity = lightingObj->get("ambient_intensity");
+                        if (ambientIntensity != nullptr && ambientIntensity->isNumber()) {
+                                scene.lighting.ambientIntensity = static_cast<float>(ambientIntensity->numberValue);
+                        }
+                }
                 std::filesystem::path sceneFileDir = std::filesystem::path(path).parent_path();
 
                 for (const SimpleJson::Value& modelValue : modelsValue->arrayValue) {

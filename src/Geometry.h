@@ -21,17 +21,28 @@ struct Geometry {
 	std::vector<unsigned int> indices;
 };
 
+inline void appendVertex(std::vector<float>& vertices, const glm::vec3& position, const glm::vec3& normal, const glm::vec2& uv) {
+	vertices.push_back(position.x);
+	vertices.push_back(position.y);
+	vertices.push_back(position.z);
+	vertices.push_back(normal.x);
+	vertices.push_back(normal.y);
+	vertices.push_back(normal.z);
+	vertices.push_back(uv.x);
+	vertices.push_back(uv.y);
+}
+
 struct PlaneGeometry : public Geometry {
 	glm::vec2 size;
 	PlaneGeometry(glm::vec2 size) {
 		float width2 = size.x / 2, height2 = size.y / 2;
-		std::vector<float> verts = {
-			// positions          // texture coords
-			 width2,  height2, 0.0f,   -1.0, -1.0, // top right
-			 width2, -height2, 0.0f,   -1.0, 0.0f, // bottom right
-			-width2, -height2, 0.0f,   0.0f, 0.0f, // bottom left
-			-width2,  height2, 0.0f,   0.0f, -1.0  // top left
-		};
+		std::vector<float> verts;
+		verts.reserve(4 * 8);
+		const glm::vec3 n(0.0f, 0.0f, 1.0f);
+		appendVertex(verts, glm::vec3(width2, height2, 0.0f), n, glm::vec2(1.0f, 1.0f));
+		appendVertex(verts, glm::vec3(width2, -height2, 0.0f), n, glm::vec2(1.0f, 0.0f));
+		appendVertex(verts, glm::vec3(-width2, -height2, 0.0f), n, glm::vec2(0.0f, 0.0f));
+		appendVertex(verts, glm::vec3(-width2, height2, 0.0f), n, glm::vec2(0.0f, 1.0f));
 
 		this->vertices = verts;
 
@@ -48,47 +59,47 @@ struct CubeGeometry : public Geometry {
         CubeGeometry() {
                 std::vector<float> verts =
                 {
-                                -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-                                 0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-                                 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                                 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-                                -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
+                                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f,
+                                 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f,
+                                 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f,
+                                 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f,
+                                -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f,
+                                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f,
 
-                                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-                                 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-                                 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-                                 0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-                                -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-                                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
+                                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f,
+                                 0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f,
+                                 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f,
+                                 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f,
+                                -0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f,
+                                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f,
 
-                                -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-                                -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-                                -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+                                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f,
+                                -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f,
+                                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f,
+                                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f,
+                                -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f,
+                                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f,
 
-                                 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-                                 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                                 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                                 0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                                 0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-                                 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
+                                 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f,
+                                 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f,
+                                 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f,
+                                 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f,
+                                 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f,
+                                 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f,
 
-                                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-                                 0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-                                 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-                                 0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-                                -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-                                -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
+                                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f,
+                                 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f,
+                                 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f,
+                                 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f,
+                                -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f,
+                                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f,
 
-                                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-                                 0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-                                 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-                                 0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-                                -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-                                -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
+                                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f,
+                                 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f,
+                                 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f,
+                                 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f,
+                                -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f,
+                                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f
                 };
 
                 std::vector<unsigned int> indic =
@@ -123,7 +134,7 @@ struct SphereGeometry : public Geometry {
 			sectors = 3;
 		}
 
-		vertices.reserve((stacks + 1) * (sectors + 1) * 5);
+		vertices.reserve((stacks + 1) * (sectors + 1) * 8);
 		indices.reserve(stacks * sectors * 6);
 
 		for (unsigned int stack = 0; stack <= stacks; ++stack) {
@@ -141,10 +152,14 @@ struct SphereGeometry : public Geometry {
 				const float x = radius * sinPhi * cosTheta;
 				const float y = radius * cosPhi;
 				const float z = radius * sinPhi * sinTheta;
+				glm::vec3 normal = glm::normalize(glm::vec3(x, y, z));
 
 				vertices.push_back(x);
 				vertices.push_back(y);
 				vertices.push_back(z);
+				vertices.push_back(normal.x);
+				vertices.push_back(normal.y);
+				vertices.push_back(normal.z);
 				vertices.push_back(u);
 				vertices.push_back(1.0f - v);
 			}

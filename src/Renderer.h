@@ -41,6 +41,27 @@ public:
 		for (Entity* root : scene->entities) {
 			collectDrawItems(root, Transform(), drawItems);
 		}
+		std::vector<SceneLight> sceneLights;
+		scene->collectActiveLights(sceneLights, MAX_SCENE_LIGHTS);
+		std::vector<ModelLightData> modelLights;
+		modelLights.reserve(sceneLights.size());
+		for (const SceneLight& light : sceneLights) {
+			ModelLightData modelLight;
+			modelLight.type = light.type;
+			modelLight.position = light.worldPosition;
+			modelLight.direction = light.direction;
+			modelLight.color = light.color;
+			modelLight.intensity = light.intensity;
+			modelLight.range = light.range;
+			modelLights.push_back(modelLight);
+		}
+		GLint viewport[4] = { 0, 0, 1, 1 };
+		glGetIntegerv(GL_VIEWPORT, viewport);
+		float aspect = static_cast<float>(viewport[2]) / static_cast<float>(std::max(1, viewport[3]));
+		glm::mat4 activeView = ModelViewMatrix();
+		glm::mat4 activeProjection = ModelProjectionMatrix(aspect);
+		glm::vec3 activeCameraPosition = ModelCameraPosition();
+		scene->getActiveCameraMatrices(aspect, activeView, activeProjection, activeCameraPosition);
 		std::sort(drawItems.begin(), drawItems.end(), [](const DrawItem& a, const DrawItem& b) {
 			const int orderA = (a.entity != nullptr) ? a.entity->order : 0;
 			const int orderB = (b.entity != nullptr) ? b.entity->order : 0;
@@ -56,11 +77,26 @@ public:
 			if (entity->hasRenderable && entity->renderable.model != nullptr) {
 				entity->renderable.model->transform = item.world;
 				const bool entityWireframe = scene->wireframeMode || entity->material.wireframe;
-				entity->renderable.model->draw(scene->offset, entity->material.tint, entityWireframe);
-			} else if (entity->showOriginMarker) {
-				drawOriginMarker(*scene, item.world, entity->material.tint);
+				ModelDrawSettings settings;
+				settings.offset = scene->offset;
+				settings.tint = entity->material.tint;
+				settings.metallic = entity->material.metallic;
+				settings.roughness = entity->material.roughness;
+				settings.wireframe = entityWireframe;
+				settings.fullBrightOverride = scene->lighting.fullBrightOverride;
+					settings.ambientColor = scene->lighting.ambientColor;
+					settings.ambientIntensity = scene->lighting.ambientIntensity;
+					settings.cameraWorldPosition = activeCameraPosition;
+					settings.view = activeView;
+					settings.projection = activeProjection;
+					settings.lights = &modelLights;
+					entity->renderable.model->draw(settings);
+				} else if (entity->showOriginMarker) {
+					Transform markerWorld = item.world;
+					markerWorld.position += scene->offset.position;
+					drawOriginMarker(markerWorld, entity->material.tint, activeView, activeProjection);
+				}
 			}
-		}
 
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
@@ -143,25 +179,15 @@ private:
 		glBindVertexArray(0);
 	}
 
-	void drawOriginMarker(const Scene& scene, const Transform& worldTransform, const glm::vec4& color) {
+	void drawOriginMarker(const Transform& worldTransform, const glm::vec4& color, const glm::mat4& view, const glm::mat4& projection) {
 		if (markerShaderProgram == 0 || markerVao == 0 || markerVbo == 0) {
 			return;
 		}
 
-		const glm::vec3 position = worldTransform.position + scene.offset.position;
+		const glm::vec3 position = worldTransform.position;
 		const float markerVertex[3] = { position.x, position.y, position.z };
 		glBindBuffer(GL_ARRAY_BUFFER, markerVbo);
 		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(markerVertex), markerVertex);
-
-		GLint viewport[4] = { 0, 0, 1, 1 };
-		glGetIntegerv(GL_VIEWPORT, viewport);
-		float aspect = static_cast<float>(viewport[2]) / static_cast<float>(std::max(1, viewport[3]));
-		glm::mat4 view = glm::lookAt(
-			glm::vec3(0.0f, 1.2f, 3.5f),
-			glm::vec3(0.0f, 0.8f, -2.0f),
-			glm::vec3(0.0f, 1.0f, 0.0f)
-		);
-		glm::mat4 projection = glm::perspective(glm::radians(60.0f), aspect, 0.01f, 500.0f);
 
 		glUseProgram(markerShaderProgram);
 		glUniformMatrix4fv(glGetUniformLocation(markerShaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));

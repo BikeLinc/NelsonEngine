@@ -185,6 +185,19 @@ private:
 			const SimpleJson::Value* nameValue = sceneObj->get("name");
 			sceneRef.name = (nameValue != nullptr && nameValue->isString()) ? nameValue->stringValue : "scene";
 			sceneRef.color = loadedColor;
+			sceneRef.lighting = SceneLightingSettings();
+			const SimpleJson::Value* lightingObj = sceneObj->get("lighting");
+			if (lightingObj != nullptr && lightingObj->isObject()) {
+				const SimpleJson::Value* fullBright = lightingObj->get("full_bright_override");
+				if (fullBright != nullptr && fullBright->isBool()) {
+					sceneRef.lighting.fullBrightOverride = fullBright->boolValue;
+				}
+				jsonToVec3(lightingObj->get("ambient_color"), sceneRef.lighting.ambientColor);
+				const SimpleJson::Value* ambientIntensity = lightingObj->get("ambient_intensity");
+				if (ambientIntensity != nullptr && ambientIntensity->isNumber()) {
+					sceneRef.lighting.ambientIntensity = static_cast<float>(ambientIntensity->numberValue);
+				}
+			}
 
 			fs::path sceneFileDir = fs::path(path).parent_path();
 			std::function<Entity*(const SimpleJson::Value&, Entity*)> loadEntityNode =
@@ -243,6 +256,61 @@ private:
 							entity->material.wireframe = wireframe->boolValue;
 						}
 					}
+					const SimpleJson::Value* hasLight = modelValue.get("has_light");
+					if (hasLight != nullptr && hasLight->isBool()) {
+						entity->hasLight = hasLight->boolValue;
+					}
+						const SimpleJson::Value* lightObj = modelValue.get("light");
+						if (lightObj != nullptr && lightObj->isObject()) {
+						entity->hasLight = true;
+						const SimpleJson::Value* enabled = lightObj->get("enabled");
+						if (enabled != nullptr && enabled->isBool()) {
+							entity->light.enabled = enabled->boolValue;
+						}
+						const SimpleJson::Value* type = lightObj->get("type");
+						if (type != nullptr && type->isString()) {
+							entity->light.type = (type->stringValue == "directional") ? LightType::Directional : LightType::Point;
+						}
+						jsonToVec3(lightObj->get("color"), entity->light.color);
+						const SimpleJson::Value* intensity = lightObj->get("intensity");
+						if (intensity != nullptr && intensity->isNumber()) {
+							entity->light.intensity = static_cast<float>(intensity->numberValue);
+						}
+						const SimpleJson::Value* range = lightObj->get("range");
+							if (range != nullptr && range->isNumber()) {
+								entity->light.range = static_cast<float>(range->numberValue);
+							}
+						}
+						const SimpleJson::Value* hasCamera = modelValue.get("has_camera");
+						if (hasCamera != nullptr && hasCamera->isBool()) {
+							entity->hasCamera = hasCamera->boolValue;
+						}
+						const SimpleJson::Value* cameraObj = modelValue.get("camera");
+						if (cameraObj != nullptr && cameraObj->isObject()) {
+							entity->hasCamera = true;
+							const SimpleJson::Value* enabled = cameraObj->get("enabled");
+							if (enabled != nullptr && enabled->isBool()) {
+								entity->camera.enabled = enabled->boolValue;
+							}
+							const SimpleJson::Value* primary = cameraObj->get("primary");
+							if (primary != nullptr && primary->isBool()) {
+								entity->camera.primary = primary->boolValue;
+							}
+							const SimpleJson::Value* fovY = cameraObj->get("fov_y");
+							if (fovY != nullptr && fovY->isNumber()) {
+								entity->camera.fovYDegrees = static_cast<float>(fovY->numberValue);
+							}
+							const SimpleJson::Value* nearClip = cameraObj->get("near_clip");
+							if (nearClip != nullptr && nearClip->isNumber()) {
+								entity->camera.nearClip = static_cast<float>(nearClip->numberValue);
+							}
+							const SimpleJson::Value* farClip = cameraObj->get("far_clip");
+							if (farClip != nullptr && farClip->isNumber()) {
+								entity->camera.farClip = static_cast<float>(farClip->numberValue);
+							}
+							entity->camera.nearClip = std::max(0.001f, entity->camera.nearClip);
+							entity->camera.farClip = std::max(entity->camera.nearClip + 0.001f, entity->camera.farClip);
+						}
 
 					Model* model = nullptr;
 					if (modelType->stringValue == "obj") {
@@ -270,6 +338,23 @@ private:
 						}
 						const std::string resolvedTexture = firstExistingPath(texture->stringValue, sceneFileDir, false);
 						model = new Model(modelName->stringValue.c_str(), resolvedTexture.c_str(), bounds, transform);
+						model->sourceType = "plane";
+					} else if (modelType->stringValue == "cube") {
+						const SimpleJson::Value* texture = modelValue.get("texture");
+						std::string texturePath = "res/images/default_white.png";
+						if (texture != nullptr && texture->isString()) {
+							texturePath = firstExistingPath(texture->stringValue, sceneFileDir, false);
+						}
+						model = new Model(modelName->stringValue.c_str(), texturePath.c_str(), CubeGeometry(), transform);
+						model->sourceType = "cube";
+					} else if (modelType->stringValue == "sphere") {
+						const SimpleJson::Value* texture = modelValue.get("texture");
+						std::string texturePath = "res/images/default_white.png";
+						if (texture != nullptr && texture->isString()) {
+							texturePath = firstExistingPath(texture->stringValue, sceneFileDir, false);
+						}
+						model = new Model(modelName->stringValue.c_str(), texturePath.c_str(), SphereGeometry(), transform);
+						model->sourceType = "sphere";
 					} else if (modelType->stringValue == "empty") {
 						model = nullptr;
 					} else {
